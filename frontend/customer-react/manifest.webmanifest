@@ -1,0 +1,10 @@
+{
+  "name": "Customer Portal",
+  "short_name": "Customer",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#002D62",
+  "icons": []
+}
+

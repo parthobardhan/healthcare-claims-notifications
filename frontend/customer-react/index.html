@@ -1,0 +1,141 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Customer Portal</title>
+    <link rel="manifest" href="manifest.webmanifest">
+    <meta name="theme-color" content="#002D62">
+    <link rel="stylesheet" href="https://unpkg.com/antd@5/dist/reset.css" />
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/antd@5.20.2/dist/reset.min.css" />
+    <style>
+      :root{ --uhg-navy:#002D62; --uhg-blue:#00A3E0; --uhg-gold:#B58500;}
+      body{font-family:-apple-system,BlinkMacSystemFont,Segoe UI,Roboto,Helvetica,Arial,sans-serif;}
+      .uhg-toolbar{display:flex;gap:12px;align-items:center;height:56px;padding:0 16px;background:var(--uhg-navy);color:#fff;font-weight:600}
+      .container{padding:16px}
+      .row{display:flex;gap:8px;align-items:center}
+      .muted{color:#666;font-size:12px;margin-top:8px}
+      .logo{width:36px;height:36px}
+    </style>
+
+    <script src="https://cdn.jsdelivr.net/npm/react@18/umd/react.development.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/react-dom@18/umd/react-dom.development.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/dayjs@1/dayjs.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/antd@5.20.2/dist/antd.min.js"></script>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script>
+      function initApp(){
+        const { useState } = React;
+        const { Button, Input, Card, Typography, message } = antd;
+
+        const API = { claims: (window.env && window.env.claimsApi) || 'http://localhost:8080', notify: (window.env && window.env.notifyApi) || 'http://localhost:8000' };
+
+        function Logo() {
+          const svg = 'data:image/svg+xml;utf8,' + encodeURIComponent(
+            '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">\n' +
+            ' <rect width="100" height="100" rx="12" fill="#002D62"/>\n' +
+            ' <text x="50%" y="58%" font-size="54" text-anchor="middle" fill="white" font-family="Arial,sans-serif">U</text>\n' +
+            '</svg>'
+          );
+          return React.createElement('img', { className:'logo', src: svg, alt:'UHG' });
+        }
+
+        async function getVapidPublicKey(){
+          const res = await fetch(API.notify + '/vapid-public-key');
+          const data = await res.json();
+          return data.publicKey;
+        }
+
+        function urlBase64ToUint8Array(base64String){
+          const padding = '='.repeat((4 - base64String.length % 4) % 4);
+          const base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/');
+          const rawData = atob(base64);
+          const outputArray = new Uint8Array(rawData.length);
+          for (let i = 0; i < rawData.length; ++i) { outputArray[i] = rawData.charCodeAt(i); }
+          return outputArray;
+        }
+
+        async function ensureSW(){
+          if (!('serviceWorker' in navigator)) return null;
+          let reg = await navigator.serviceWorker.getRegistration();
+          if (!reg) reg = await navigator.serviceWorker.register('sw.js', { scope: '/' });
+          await navigator.serviceWorker.ready;
+          return reg;
+        }
+
+        function App(){
+          const [email, setEmail] = useState('');
+          const [memberId, setMemberId] = useState('');
+          const [claims, setClaims] = useState([]);
+
+          const subscribe = async ()=>{
+            try {
+              const permission = await Notification.requestPermission();
+              if (permission !== 'granted') { message.warning('Permission not granted'); return; }
+              const publicKey = await getVapidPublicKey();
+              const reg = await ensureSW();
+              const existing = await reg.pushManager.getSubscription();
+              if (existing) { try { await existing.unsubscribe(); } catch (_) {} }
+              const sub = await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: urlBase64ToUint8Array(publicKey) });
+              await fetch(API.notify + '/subscribe?email=' + encodeURIComponent(email), { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(sub) });
+              message.success('Subscribed to push notifications');
+            } catch(e) { message.error('Subscription failed'); console.error(e); }
+          };
+
+          const loadClaims = async ()=>{
+            try {
+              const res = await fetch(API.claims + '/claims');
+              const data = await res.json();
+              setClaims((data||[]).filter(c=>c.member_id === memberId));
+            } catch { message.error('Failed to load claims'); }
+          };
+
+          return React.createElement('div', null,
+            React.createElement('div', { className:'uhg-toolbar' },
+              React.createElement(Logo, null),
+              React.createElement('span', null, 'Customer Portal')
+            ),
+            React.createElement('div', { className:'container' },
+              React.createElement(Card, { style:{ maxWidth:640 } },
+                React.createElement(Typography.Title, { level:2 }, 'Notifications'),
+                React.createElement('div', { className:'row' },
+                  React.createElement(Input, { placeholder:'Your email', value:email, onChange:e=>setEmail(e.target.value) }),
+                  React.createElement(Button, { type:'primary', onClick: subscribe }, 'Enable Notifications')
+                ),
+                React.createElement('div', { className:'muted' }, 'Push server: ' + API.notify)
+              ),
+              React.createElement(Card, { style:{ maxWidth:640, marginTop:16 } },
+                React.createElement(Typography.Title, { level:2 }, 'Check your claim'),
+                React.createElement('div', { className:'row' },
+                  React.createElement(Input, { placeholder:'Member ID (e.g., M001)', value:memberId, onChange:e=>setMemberId(e.target.value) }),
+                  React.createElement(Button, { onClick: loadClaims }, 'Load')
+                ),
+                claims && claims.length ? React.createElement('ul', null,
+                  claims.map(c => React.createElement('li', { key:c.id }, `${c.id} — ${c.status} — service: ${c.service_date} — paid: $${Number(c.amount_paid||0).toFixed(2)}`))
+                ) : null
+              )
+            )
+          );
+        }
+
+        ReactDOM.createRoot(document.getElementById('root')).render(React.createElement(App));
+      }
+
+      (function ensureDepsAndStart(){
+        function loadScript(src, onload, onerror){ const s=document.createElement('script'); s.src=src; s.async=true; s.onload=onload; s.onerror=onerror||(()=>{}); document.head.appendChild(s); }
+        function start(){ try{ initApp(); } catch(e){ console.error('App init failed', e);} }
+        function ensureAntd(){ if(window.antd){ start(); return; } loadScript('https://unpkg.com/antd@5.20.2/dist/antd.min.js', ()=> start()); }
+        if(!window.dayjs){ loadScript('https://unpkg.com/dayjs@1/dayjs.min.js', ()=> ensureAntd(), ()=> ensureAntd()); } else { ensureAntd(); }
+      })();
+    </script>
+    <script>
+      // Register SW immediately if available
+      if ('serviceWorker' in navigator) {
+        navigator.serviceWorker.register('sw.js');
+      }
+    </script>
+  </body>
+</html>
+
