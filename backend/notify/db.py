@@ -11,12 +11,11 @@ _db: Optional[AsyncIOMotorDatabase] = None
 
 
 def get_mongo_uri() -> str:
-    # Default to local MongoDB for development if not provided
     return os.getenv("MONGODB_URI", "mongodb://localhost:27017")
 
 
 def get_db_name() -> str:
-    name = os.getenv("DB_NAME", "uhg_claims")
+    name = os.getenv("DB_NAME", "web_notifications")
     return name
 
 

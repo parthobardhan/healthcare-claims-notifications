@@ -4,8 +4,8 @@ from httpx import AsyncClient
 from motor.motor_asyncio import AsyncIOMotorClient
 from bson import ObjectId
 
-from app.main import app
-from app.db import get_db
+from claims.app import app
+from claims.db import get_db
 
 TEST_DB_NAME = "uhg_claims_test"
 

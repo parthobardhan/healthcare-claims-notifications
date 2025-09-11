@@ -32,19 +32,14 @@ start_claims_backend() {
     # export key=value pairs from .env (ignore comments)
     export $(grep -v '^#' .env | xargs) || true
   fi
-  uvicorn app.main:app --reload --host 0.0.0.0 --port 8080 &
+  uvicorn claims.app:app --reload --host 0.0.0.0 --port 8080 &
   PIDS+=("$!")
   popd >/dev/null
 }
 
 start_notify_backend() {
-  local NOTIFY_DIR="$REPO_ROOT/web-notification/backend"
-  if [[ ! -d "$NOTIFY_DIR" ]]; then
-    echo "[notify-backend] directory not found: $NOTIFY_DIR" >&2
-    return 1
-  fi
   echo "[notify-backend] starting on :8000"
-  pushd "$NOTIFY_DIR" >/dev/null
+  pushd "$SCRIPT_DIR/backend" >/dev/null
   if [[ -f "venv/bin/activate" ]]; then
     # shellcheck disable=SC1091
     source venv/bin/activate
@@ -52,7 +47,7 @@ start_notify_backend() {
   if [[ -f ".env" ]]; then
     export $(grep -v '^#' .env | xargs) || true
   fi
-  uvicorn app.main:app --reload --host 0.0.0.0 --port 8000 &
+  uvicorn notify.app:app --reload --host 0.0.0.0 --port 8000 &
   PIDS+=("$!")
   popd >/dev/null
 }
