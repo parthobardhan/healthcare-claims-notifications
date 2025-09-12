@@ -14,7 +14,7 @@ Run locally
    - source venv/bin/activate
    - pip install -r requirements.txt
 3. Start the API:
-   - uvicorn app.main:app --reload --port 8080
+   - uvicorn claims.app:app --reload --port 8080
 
 API
 - GET /health -> {"status":"ok"}

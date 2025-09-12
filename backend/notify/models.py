@@ -35,3 +35,13 @@ class NotificationRecord(BaseModel):
     audience: Literal["all", "user"] = "all"
     user_id: Optional[str] = None
 
+
+class DeliveryRecord(BaseModel):
+    id: Optional[str] = Field(default=None, alias="_id")
+    notification_id: Optional[str] = None
+    user_id: Optional[str] = None
+    endpoint: Optional[str] = None
+    status: Literal["sent", "failed", "removed"]
+    status_code: Optional[int] = None
+    error: Optional[str] = None
+    created_at: Optional[str] = None

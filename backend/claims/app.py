@@ -82,6 +82,9 @@ async def update_claim(claim_id: str, payload: ClaimUpdate, db: AsyncIOMotorData
         c_id = str(c.pop("_id"))
         return ClaimOut(id=c_id, **c)
 
+    # Normalize values (e.g., date -> ISO string) before persisting
+    updates = _normalize_for_mongo(updates)
+
     res = await db.claims.update_one({"_id": _oid(claim_id)}, {"$set": updates})
     if res.matched_count == 0:
         raise HTTPException(status_code=404, detail="Claim not found")

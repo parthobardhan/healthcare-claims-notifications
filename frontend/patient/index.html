@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Patient - Healthcare Claims</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/antd@5.19.3/dist/reset.css" />
+    <link rel="icon" href="data:," />
+    <style>
+      body { margin: 0; padding: 0; }
+      #root { min-height: 100vh; }
+      .container { max-width: 1000px; margin: 0 auto; padding: 24px; }
+    </style>
+    <script crossorigin src="https://unpkg.com/react@18/umd/react.development.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/dayjs@1/dayjs.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/antd@5.19.3/dist/antd.min.js"></script>
+    <script>if(!window.antd){document.write('<script src="https://unpkg.com/antd@5.19.3/dist/antd.min.js"><\\/script>')}</script>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script>
+      const { useState } = window.React || {};
+      const { createRoot } = window.ReactDOM || {};
+      if (!window.antd || !useState || !createRoot) {
+        document.getElementById('root').innerHTML = '<div style="padding:16px;color:#c00">Failed to load UI assets (React/AntD). Please check network to jsdelivr/unpkg and hard-refresh.</div>';
+        console.error('Dependencies not loaded: React/ReactDOM/AntD');
+        throw new Error('Dependencies not loaded');
+      }
+      const { Typography, Input, Button, Table, message } = window.antd;
+      const { Title } = Typography;
+
+      const CLAIMS_API = (path = "") => `http://localhost:8080${path}`;
+      const NOTIFY_API = (path = "") => `http://localhost:8000${path}`;
+
+      function urlBase64ToUint8Array(base64String) {
+        const padding = '='.repeat((4 - (base64String.length % 4)) % 4);
+        const base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/');
+        const rawData = atob(base64);
+        const outputArray = new Uint8Array(rawData.length);
+        for (let i = 0; i < rawData.length; ++i) {
+          outputArray[i] = rawData.charCodeAt(i);
+        }
+        return outputArray;
+      }
+
+      async function registerPush(email) {
+        if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
+          message.error('Push notifications are not supported in this browser.');
+          return;
+        }
+        try {
+          const reg = await navigator.serviceWorker.register('/sw.js');
+          await navigator.serviceWorker.ready;
+          const keyRes = await fetch(NOTIFY_API('/vapid-public-key'));
+          const { publicKey } = await keyRes.json();
+          const sub = await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: urlBase64ToUint8Array(publicKey) });
+          const resp = await fetch(NOTIFY_API('/subscribe') + (email ? `?email=${encodeURIComponent(email)}` : ''), {
+            method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(sub)
+          });
+          if (!resp.ok) throw new Error('Subscribe failed');
+          message.success('Subscribed for push notifications');
+        } catch (e) { console.error(e); message.error(e.message || 'Subscription failed'); }
+      }
+
+      function Patient() {
+        const [memberId, setMemberId] = useState('');
+        const [email, setEmail] = useState('');
+        const [claims, setClaims] = useState([]);
+        const [loading, setLoading] = useState(false);
+
+        const lookup = async () => {
+          setLoading(true);
+          try {
+            const res = await fetch(CLAIMS_API('/claims'));
+            const data = await res.json();
+            setClaims((data || []).filter(c => c.member_id === memberId.trim()));
+          } catch (e) { message.error('Lookup failed'); }
+          finally { setLoading(false); }
+        };
+
+        return (
+          React.createElement('div', { className: 'container' },
+            React.createElement(Title, { level: 3 }, 'Patient Portal'),
+            React.createElement('div', { style: { display: 'flex', gap: 12, marginBottom: 16, flexWrap: 'wrap' } },
+              React.createElement(Input, { placeholder: 'Member ID', style: { width: 200 }, value: memberId, onChange: e => setMemberId(e.target.value) }),
+              React.createElement(Button, { type: 'primary', onClick: lookup, disabled: !memberId }, 'Lookup Claims'),
+              React.createElement(Input, { placeholder: 'Email for notifications', style: { width: 260 }, value: email, onChange: e => setEmail(e.target.value) }),
+              React.createElement(Button, { onClick: () => Notification.requestPermission().then(() => registerPush(email)) }, 'Subscribe to Push'),
+              React.createElement(Button, { type: 'dashed', onClick: async () => {
+                try {
+                  const resp = await fetch(NOTIFY_API('/notify'), {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ title: 'Test', body: 'Hello from Patient UI', url: location.origin })
+                  });
+                  const data = await resp.json().catch(() => ({}));
+                  if (!resp.ok || data.ok === false) throw new Error('Notify failed');
+                  antd.message.success('Test notification posted');
+                } catch (e) {
+                  console.error(e);
+                  antd.message.error(e.message || 'Failed to post notification');
+                }
+              } }, 'Send Test Notification')
+            ),
+            React.createElement(Table, {
+              rowKey: 'id',
+              columns: [
+                { title: 'ID', dataIndex: 'id' },
+                { title: 'Service Date', dataIndex: 'service_date' },
+                { title: 'Diagnosis', dataIndex: 'diagnosis_codes', render: arr => (arr||[]).join(', ') },
+                { title: 'Procedures', dataIndex: 'procedure_codes', render: arr => (arr||[]).join(', ') },
+                { title: 'Paid', dataIndex: 'amount_paid' },
+                { title: 'Status', dataIndex: 'status' },
+              ],
+              dataSource: claims,
+              loading
+            })
+          )
+        );
+      }
+
+      const root = createRoot(document.getElementById('root'));
+      root.render(React.createElement(Patient));
+    </script>
+  </body>
+</html>
+

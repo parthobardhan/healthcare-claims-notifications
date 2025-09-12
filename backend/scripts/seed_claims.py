@@ -16,9 +16,9 @@ if str(BACKEND_DIR) not in sys.path:
     sys.path.insert(0, str(BACKEND_DIR))
 
 
-# Reuse app DB settings
-from app.db import get_mongo_uri, get_db_name
-from app.models import ClaimStatus
+# Reuse claims module DB settings
+from claims.db import get_mongo_uri, get_db_name
+from claims.models import ClaimStatus
 
 
 DIAG_CODES = ["E11.9", "I10", "J06.9", "M54.5", "K21.9", "N39.0", "E78.5"]

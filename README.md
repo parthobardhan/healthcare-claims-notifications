@@ -5,11 +5,11 @@ A small end-to-end demo showing a healthcare claims API (FastAPI + MongoDB Atlas
 ## Stack
 - Backend: Python 3.10+, FastAPI, Motor (MongoDB), Pydantic v2, Uvicorn
 - Frontends: Static React (served via `python -m http.server`) + Ant Design over CDN
-- Notifications: Separate FastAPI service in `../web-notification` (same repo)
+- Notifications: FastAPI service under `backend/notify`
 - Database: MongoDB Atlas
 
 ## Repository layout
-- `backend/` — FastAPI claims service and tests
+- `backend/` — FastAPI services (claims and notify) and tests
 - `frontend/`
   - `adjuster-react/` — Adjuster portal (static React)
   - `customer-react/` — Customer portal (static React + Service Worker consumption)
@@ -40,32 +40,28 @@ MONGODB_URI=mongodb+srv://<user>:<pass>@<cluster>/?retryWrites=true&w=majority
 DB_NAME=uhg_claims
 ```
 
-### 2) Configure and install the Notification Backend (companion service)
-From the repository root:
+### 2) Configure the Notification Backend (integrated)
+The notification service now lives under `backend/notify` and runs from the same virtualenv as claims. By default, it looks for VAPID PEM keys under `backend/notify/public_key.pem` and `backend/notify/private_key.pem`.
+
+Optionally, you can set environment variables in `backend/.env` instead of PEMs:
 
 ```bash
-cd web-notification/backend
-python -m venv venv
-source venv/bin/activate
-pip install -r requirements.txt
+# backend/.env
+# Mongo (notify uses the same MONGODB_URI unless overridden)
+MONGODB_URI=mongodb+srv://<user>:<pass>@<cluster>/?retryWrites=true&w=majority
+DB_NAME=web_notifications
+
+# VAPID (optional if PEMs are present under backend/notify)
+VAPID_PUBLIC_KEY=<your-public-key>
+VAPID_PRIVATE_KEY=<your-private-key>
+# Optional: allow specific origins (comma-separated)
+# CORS_ORIGINS=http://localhost:4200,http://localhost:4201
 ```
 
-Generate VAPID keys (one-time; requires Node):
+To generate VAPID keys yourself (one-time; requires Node):
 
 ```bash
 npx web-push generate-vapid-keys
-# Copy the public/private keys it prints and add them to .env
-```
-
-Create `web-notification/backend/.env`:
-
-```bash
-MONGODB_URI=mongodb+srv://<user>:<pass>@<cluster>/?retryWrites=true&w=majority
-DB_NAME=notifications
-VAPID_PUBLIC_KEY=<from generate-vapid-keys>
-VAPID_PRIVATE_KEY=<from generate-vapid-keys>
-# Optional: allow specific origins (comma-separated); localhost is broadly allowed by default
-# CORS_ORIGINS=http://localhost:4200,http://localhost:4201
 ```
 
 ### 3) Start everything with one command
@@ -100,14 +96,14 @@ This creates 20 mock claims with realistic statuses and amounts in your DB.
 ```bash
 cd healthcare-claims/backend
 source venv/bin/activate
-uvicorn app.main:app --reload --host 0.0.0.0 --port 8080
+uvicorn claims.app:app --reload --host 0.0.0.0 --port 8080
 ```
 
-### Notification API (companion)
+### Notification API
 ```bash
-cd web-notification/backend
+cd healthcare-claims/backend
 source venv/bin/activate
-uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
+uvicorn notify.app:app --reload --host 0.0.0.0 --port 8000
 ```
 
 ### Frontends (static)
@@ -142,10 +138,11 @@ MONGODB_URI=...
 DB_NAME=uhg_claims
 ```
 
-### Notification backend (`web-notification/backend/.env`)
+### Notification backend (env via `healthcare-claims/backend/.env`)
 ```bash
 MONGODB_URI=...
-DB_NAME=notifications
+DB_NAME=web_notifications
+# Either set VAPID env vars (below) or place PEMs under backend/notify
 VAPID_PUBLIC_KEY=...
 VAPID_PRIVATE_KEY=...
 # Optional: CORS_ORIGINS=...

@@ -6,7 +6,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
 from .db import get_db, close_db
-from .models import User, PushSubscription, NotificationCreate, NotificationRecord
+from .models import User, PushSubscription, NotificationCreate, NotificationRecord, DeliveryRecord
 from .notify import send_web_push, get_vapid
 
 from motor.motor_asyncio import AsyncIOMotorDatabase
@@ -87,6 +87,13 @@ async def notify(payload: NotificationCreate, db: AsyncIOMotorDatabase = Depends
                     "icon": payload.icon,
                     "url": payload.url,
                 })
+                await db.deliveries.insert_one({
+                    "notification_id": str(rec_res.inserted_id),
+                    "user_id": str(user["_id"]),
+                    "endpoint": s.get("endpoint"),
+                    "status": "sent",
+                    "created_at": __import__("datetime").datetime.utcnow().isoformat()
+                })
             except Exception as ex:
                 resp = getattr(ex, "response", None)
                 status = getattr(resp, "status_code", None)
@@ -99,8 +106,26 @@ async def notify(payload: NotificationCreate, db: AsyncIOMotorDatabase = Depends
                 if status in (404, 410) or (status == 400 and "VapidPkHashMismatch" in str(body_text)):
                     removed.append(s.get("endpoint"))
                     await db.users.update_one({"_id": user["_id"]}, {"$pull": {"subscriptions": {"endpoint": s.get("endpoint")}}})
+                    await db.deliveries.insert_one({
+                        "notification_id": str(rec_res.inserted_id),
+                        "user_id": str(user["_id"]),
+                        "endpoint": s.get("endpoint"),
+                        "status": "removed",
+                        "status_code": status,
+                        "error": str(ex),
+                        "created_at": __import__("datetime").datetime.utcnow().isoformat()
+                    })
                 else:
                     print(f"Web push failed for endpoint {s.get('endpoint')}: {ex}")
+                    await db.deliveries.insert_one({
+                        "notification_id": str(rec_res.inserted_id),
+                        "user_id": str(user.get("_id")),
+                        "endpoint": s.get("endpoint"),
+                        "status": "failed",
+                        "status_code": status,
+                        "error": str(ex),
+                        "created_at": __import__("datetime").datetime.utcnow().isoformat()
+                    })
 
     return {"ok": True, "notificationId": str(rec_res.inserted_id), "removed": removed}
 
@@ -120,5 +145,14 @@ async def list_notifications(db: AsyncIOMotorDatabase = Depends(get_db)):
     async for doc in db.notifications.find({}).sort("_id", -1).limit(100):
         doc["_id"] = str(doc["_id"])  # Convert ObjectId to str for response
         out.append(NotificationRecord.model_validate(doc))
+    return out
+
+
+@app.get("/deliveries", response_model=List[DeliveryRecord])
+async def list_deliveries(db: AsyncIOMotorDatabase = Depends(get_db)):
+    out: List[DeliveryRecord] = []
+    async for doc in db.deliveries.find({}).sort("_id", -1).limit(200):
+        doc["_id"] = str(doc["_id"])  # Convert ObjectId to str for response
+        out.append(DeliveryRecord.model_validate(doc))
     return out
 

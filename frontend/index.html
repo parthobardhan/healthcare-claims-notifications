@@ -1,0 +1,282 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Healthcare Claims Portal</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/antd@5/dist/reset.css" />
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/antd@5.19.3/dist/reset.css" />
+    <link rel="icon" href="data:," />
+    <style>
+      body { margin: 0; padding: 0; }
+      #root { min-height: 100vh; }
+      .container { max-width: 1200px; margin: 0 auto; padding: 24px; }
+    </style>
+    <script crossorigin src="https://unpkg.com/react@18/umd/react.development.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+    <script crossorigin src="https://unpkg.com/react-router-dom@6/umd/react-router-dom.development.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/antd@5.19.3/dist/antd.min.js"></script>
+  </head>
+  <body>
+    <div id="root"></div>
+
+    <script>
+      const { useState, useEffect, useMemo } = React;
+      const { createRoot } = ReactDOM;
+      const { BrowserRouter, Routes, Route, Link, useNavigate } = ReactRouterDOM;
+      const {
+        Layout, Menu, Table, Button, Modal, Form, Input, DatePicker, InputNumber, Select, Space, message, Typography, Divider
+      } = antd;
+      const { Header, Content, Footer, Sider } = Layout;
+      const { Title, Text } = Typography;
+
+      const CLAIMS_API = (path = "") => `http://localhost:8080${path}`;
+      const NOTIFY_API = (path = "") => `http://localhost:8000${path}`;
+
+      // ----- Utilities -----
+      function isoToMoment(iso) { return iso ? dayjs(iso) : null; }
+      function momentToIso(m) { return m ? m.format("YYYY-MM-DD") : null; }
+
+      // Include dayjs for date handling
+    </script>
+    <script src="https://cdn.jsdelivr.net/npm/dayjs@1/dayjs.min.js"></script>
+
+    <script>
+      // ----- Adjuster Module -----
+      function Adjuster() {
+        const [claims, setClaims] = useState([]);
+        const [loading, setLoading] = useState(false);
+        const [editing, setEditing] = useState(null); // claim object
+        const [form] = antd.Form.useForm();
+
+        const fetchClaims = async () => {
+          setLoading(true);
+          try {
+            const res = await fetch(CLAIMS_API('/claims'));
+            const data = await res.json();
+            setClaims(data);
+          } catch (e) { message.error('Failed to load claims'); }
+          finally { setLoading(false); }
+        };
+
+        useEffect(() => { fetchClaims(); }, []);
+
+        const columns = [
+          { title: 'ID', dataIndex: 'id', key: 'id' },
+          { title: 'Member', dataIndex: 'member_id', key: 'member_id' },
+          { title: 'Provider', dataIndex: 'provider_id', key: 'provider_id' },
+          { title: 'Service Date', dataIndex: 'service_date', key: 'service_date' },
+          { title: 'Received Date', dataIndex: 'received_date', key: 'received_date' },
+          { title: 'Diagnosis', dataIndex: 'diagnosis_codes', key: 'diagnosis_codes', render: arr => (arr||[]).join(', ') },
+          { title: 'Procedures', dataIndex: 'procedure_codes', key: 'procedure_codes', render: arr => (arr||[]).join(', ') },
+          { title: 'Billed', dataIndex: 'amount_billed', key: 'amount_billed' },
+          { title: 'Allowed', dataIndex: 'amount_allowed', key: 'amount_allowed' },
+          { title: 'Paid', dataIndex: 'amount_paid', key: 'amount_paid' },
+          { title: 'Status', dataIndex: 'status', key: 'status' },
+          { title: 'Notes', dataIndex: 'notes', key: 'notes' },
+          { title: 'Actions', key: 'actions', render: (_, record) => (
+              React.createElement(antd.Button, { onClick: () => onEdit(record) }, 'Edit')
+            )
+          },
+        ];
+
+        const onEdit = (record) => {
+          setEditing(record);
+          form.setFieldsValue({
+            ...record,
+            service_date: record.service_date ? dayjs(record.service_date) : null,
+            received_date: record.received_date ? dayjs(record.received_date) : null,
+            diagnosis_codes: (record.diagnosis_codes || []).join(', '),
+            procedure_codes: (record.procedure_codes || []).join(', '),
+          });
+        };
+
+        const handleUpdate = async () => {
+          try {
+            const values = await form.validateFields();
+            const payload = {
+              member_id: values.member_id,
+              provider_id: values.provider_id,
+              service_date: values.service_date ? values.service_date.format('YYYY-MM-DD') : null,
+              received_date: values.received_date ? values.received_date.format('YYYY-MM-DD') : null,
+              diagnosis_codes: values.diagnosis_codes ? values.diagnosis_codes.split(',').map(s => s.trim()).filter(Boolean) : [],
+              procedure_codes: values.procedure_codes ? values.procedure_codes.split(',').map(s => s.trim()).filter(Boolean) : [],
+              amount_billed: values.amount_billed,
+              amount_allowed: values.amount_allowed,
+              amount_paid: values.amount_paid,
+              status: values.status,
+              notes: values.notes,
+            };
+            const res = await fetch(CLAIMS_API(`/claims/${editing.id}`), {
+              method: 'PATCH',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify(payload)
+            });
+            if (!res.ok) throw new Error('Update failed');
+            message.success('Claim updated');
+            setEditing(null);
+            fetchClaims();
+          } catch (e) {
+            if (e?.errorFields) return; // validation error
+            message.error(e.message || 'Failed to update');
+          }
+        };
+
+        return (
+          React.createElement('div', { className: 'container' },
+            React.createElement('div', { style: { display: 'flex', justifyContent: 'space-between', marginBottom: 16 } },
+              React.createElement(antd.Typography.Title, { level: 3 }, 'Adjuster - Claims'),
+              React.createElement(antd.Button, { onClick: fetchClaims, loading }, 'Refresh')
+            ),
+            React.createElement(antd.Table, { rowKey: 'id', columns, dataSource: claims, loading, pagination: { pageSize: 10 } }),
+            React.createElement(antd.Modal, {
+              open: !!editing,
+              title: 'Edit Claim',
+              onCancel: () => setEditing(null),
+              onOk: handleUpdate,
+              width: 720
+            },
+              React.createElement(antd.Form, { layout: 'vertical', form },
+                React.createElement(antd.Form.Item, { name: 'member_id', label: 'Member ID', rules: [{ required: true }] }, React.createElement(antd.Input)),
+                React.createElement(antd.Form.Item, { name: 'provider_id', label: 'Provider ID', rules: [{ required: true }] }, React.createElement(antd.Input)),
+                React.createElement(antd.Form.Item, { name: 'service_date', label: 'Service Date', rules: [{ required: true }] }, React.createElement(antd.DatePicker)),
+                React.createElement(antd.Form.Item, { name: 'received_date', label: 'Received Date', rules: [{ required: true }] }, React.createElement(antd.DatePicker)),
+                React.createElement(antd.Form.Item, { name: 'diagnosis_codes', label: 'Diagnosis Codes (comma-separated)' }, React.createElement(antd.Input)),
+                React.createElement(antd.Form.Item, { name: 'procedure_codes', label: 'Procedure Codes (comma-separated)' }, React.createElement(antd.Input)),
+                React.createElement(antd.Form.Item, { name: 'amount_billed', label: 'Amount Billed', rules: [{ required: true }] }, React.createElement(antd.InputNumber, { style: { width: '100%' }, min: 0, step: 0.01 })),
+                React.createElement(antd.Form.Item, { name: 'amount_allowed', label: 'Amount Allowed' }, React.createElement(antd.InputNumber, { style: { width: '100%' }, min: 0, step: 0.01 })),
+                React.createElement(antd.Form.Item, { name: 'amount_paid', label: 'Amount Paid' }, React.createElement(antd.InputNumber, { style: { width: '100%' }, min: 0, step: 0.01 })),
+                React.createElement(antd.Form.Item, { name: 'status', label: 'Status', rules: [{ required: true }] },
+                  React.createElement(antd.Select, {
+                    options: [
+                      { value: 'submitted', label: 'submitted' },
+                      { value: 'pending', label: 'pending' },
+                      { value: 'adjudicated', label: 'adjudicated' },
+                      { value: 'paid', label: 'paid' },
+                      { value: 'denied', label: 'denied' },
+                    ]
+                  })
+                ),
+                React.createElement(antd.Form.Item, { name: 'notes', label: 'Notes' }, React.createElement(antd.Input.TextArea, { rows: 3 }))
+              )
+            )
+          )
+        );
+      }
+
+      // ----- Patient Module -----
+      function urlBase64ToUint8Array(base64String) {
+        const padding = '='.repeat((4 - (base64String.length % 4)) % 4);
+        const base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/');
+        const rawData = atob(base64);
+        const outputArray = new Uint8Array(rawData.length);
+        for (let i = 0; i < rawData.length; ++i) {
+          outputArray[i] = rawData.charCodeAt(i);
+        }
+        return outputArray;
+      }
+
+      async function registerPush(email) {
+        if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
+          antd.message.error('Push notifications are not supported in this browser.');
+          return;
+        }
+        try {
+          const reg = await navigator.serviceWorker.register('/sw.js');
+          await navigator.serviceWorker.ready;
+          const keyRes = await fetch(NOTIFY_API('/vapid-public-key'));
+          const { publicKey } = await keyRes.json();
+          const sub = await reg.pushManager.subscribe({
+            userVisibleOnly: true,
+            applicationServerKey: urlBase64ToUint8Array(publicKey)
+          });
+          const resp = await fetch(NOTIFY_API('/subscribe') + (email ? `?email=${encodeURIComponent(email)}` : ''), {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(sub)
+          });
+          if (!resp.ok) throw new Error('Subscribe failed');
+          antd.message.success('Subscribed for push notifications');
+        } catch (e) {
+          console.error(e);
+          antd.message.error(e.message || 'Subscription failed');
+        }
+      }
+
+      function Patient() {
+        const [memberId, setMemberId] = useState('');
+        const [email, setEmail] = useState('');
+        const [claims, setClaims] = useState([]);
+        const [loading, setLoading] = useState(false);
+
+        const lookup = async () => {
+          setLoading(true);
+          try {
+            const res = await fetch(CLAIMS_API('/claims'));
+            const data = await res.json();
+            const filtered = data.filter(c => c.member_id === memberId.trim());
+            setClaims(filtered);
+          } catch (e) { antd.message.error('Lookup failed'); }
+          finally { setLoading(false); }
+        };
+
+        return (
+          React.createElement('div', { className: 'container' },
+            React.createElement(antd.Typography.Title, { level: 3 }, 'Patient Portal'),
+            React.createElement('div', { style: { display: 'flex', gap: 12, marginBottom: 16, flexWrap: 'wrap' } },
+              React.createElement(antd.Input, { placeholder: 'Member ID', style: { width: 200 }, value: memberId, onChange: e => setMemberId(e.target.value) }),
+              React.createElement(antd.Button, { type: 'primary', onClick: lookup, disabled: !memberId }, 'Lookup Claims'),
+              React.createElement(antd.Input, { placeholder: 'Email for notifications', style: { width: 260 }, value: email, onChange: e => setEmail(e.target.value) }),
+              React.createElement(antd.Button, { onClick: () => Notification.requestPermission().then(() => registerPush(email)) }, 'Subscribe to Push')
+            ),
+            React.createElement(antd.Table, {
+              rowKey: 'id',
+              columns: [
+                { title: 'ID', dataIndex: 'id' },
+                { title: 'Service Date', dataIndex: 'service_date' },
+                { title: 'Diagnosis', dataIndex: 'diagnosis_codes', render: arr => (arr||[]).join(', ') },
+                { title: 'Procedures', dataIndex: 'procedure_codes', render: arr => (arr||[]).join(', ') },
+                { title: 'Paid', dataIndex: 'amount_paid' },
+                { title: 'Status', dataIndex: 'status' },
+              ],
+              dataSource: claims,
+              loading
+            })
+          )
+        );
+      }
+
+      function Shell() {
+        const [collapsed, setCollapsed] = useState(false);
+        return (
+          React.createElement(Layout, { style: { minHeight: '100vh' } },
+            React.createElement(Sider, { collapsible: true, collapsed, onCollapse: setCollapsed },
+              React.createElement('div', { style: { height: 48, margin: 16, background: 'rgba(255,255,255,0.2)' } }),
+              React.createElement(Menu, { theme: 'dark', defaultSelectedKeys: ['adjuster'], mode: 'inline' },
+                React.createElement(Menu.Item, { key: 'adjuster' }, React.createElement(Link, { to: '/adjuster' }, 'Adjuster')),
+                React.createElement(Menu.Item, { key: 'patient' }, React.createElement(Link, { to: '/patient' }, 'Patient')),
+              )
+            ),
+            React.createElement(Layout, null,
+              React.createElement(Header, { style: { background: '#fff', padding: '0 16px' } }, React.createElement(Title, { level: 4, style: { margin: 0 } }, 'Healthcare Claims Portal')),
+              React.createElement(Content, { style: { margin: '16px' } },
+                React.createElement('div', { style: { padding: 24, minHeight: 360, background: '#fff' } },
+                  React.createElement(ReactRouterDOM.Routes, null,
+                    React.createElement(ReactRouterDOM.Route, { path: '/', element: React.createElement(Adjuster) }),
+                    React.createElement(ReactRouterDOM.Route, { path: '/adjuster', element: React.createElement(Adjuster) }),
+                    React.createElement(ReactRouterDOM.Route, { path: '/patient', element: React.createElement(Patient) })
+                  )
+                )
+              ),
+              React.createElement(Footer, { style: { textAlign: 'center' } }, '© ', new Date().getFullYear(), ' Healthcare Claims')
+            )
+          )
+        );
+      }
+
+      const root = createRoot(document.getElementById('root'));
+      root.render(React.createElement(ReactRouterDOM.BrowserRouter, null, React.createElement(Shell)));
+    </script>
+  </body>
+</html>
+

@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Adjuster - Healthcare Claims</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/antd@5.19.3/dist/reset.css" />
+    <link rel="icon" href="data:," />
+    <style>
+      body { margin: 0; padding: 0; }
+      #root { min-height: 100vh; }
+      .container { max-width: 1200px; margin: 0 auto; padding: 24px; }
+    </style>
+    <script crossorigin src="https://unpkg.com/react@18/umd/react.development.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/dayjs@1/dayjs.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/antd@5.19.3/dist/antd.min.js"></script>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script>
+      const { useState, useEffect } = React;
+      const { createRoot } = ReactDOM;
+      const { Table, Button, Modal, Form, Input, DatePicker, InputNumber, Select, Typography, message } = antd;
+      const { Title } = Typography;
+
+      const CLAIMS_API = (path = "") => `http://localhost:8080${path}`;
+
+      function Adjuster() {
+        const [claims, setClaims] = useState([]);
+        const [loading, setLoading] = useState(false);
+        const [editing, setEditing] = useState(null);
+        const [form] = antd.Form.useForm();
+
+        const fetchClaims = async () => {
+          setLoading(true);
+          try {
+            const res = await fetch(CLAIMS_API('/claims'));
+            const data = await res.json();
+            setClaims(data);
+          } catch (e) { message.error('Failed to load claims'); }
+          finally { setLoading(false); }
+        };
+        useEffect(() => { fetchClaims(); }, []);
+
+        const columns = [
+          { title: 'ID', dataIndex: 'id' },
+          { title: 'Member', dataIndex: 'member_id' },
+          { title: 'Provider', dataIndex: 'provider_id' },
+          { title: 'Service Date', dataIndex: 'service_date' },
+          { title: 'Received Date', dataIndex: 'received_date' },
+          { title: 'Diagnosis', dataIndex: 'diagnosis_codes', render: arr => (arr||[]).join(', ') },
+          { title: 'Procedures', dataIndex: 'procedure_codes', render: arr => (arr||[]).join(', ') },
+          { title: 'Billed', dataIndex: 'amount_billed' },
+          { title: 'Allowed', dataIndex: 'amount_allowed' },
+          { title: 'Paid', dataIndex: 'amount_paid' },
+          { title: 'Status', dataIndex: 'status' },
+          { title: 'Notes', dataIndex: 'notes' },
+          { title: 'Actions', key: 'actions', render: (_, record) => (
+              React.createElement(antd.Button, { onClick: () => onEdit(record) }, 'Edit')
+            )
+          },
+        ];
+
+        const onEdit = (record) => {
+          setEditing(record);
+          form.setFieldsValue({
+            ...record,
+            service_date: record.service_date ? dayjs(record.service_date) : null,
+            received_date: record.received_date ? dayjs(record.received_date) : null,
+            diagnosis_codes: (record.diagnosis_codes || []).join(', '),
+            procedure_codes: (record.procedure_codes || []).join(', '),
+          });
+        };
+
+        const handleUpdate = async () => {
+          try {
+            const values = await form.validateFields();
+            const payload = {
+              member_id: values.member_id,
+              provider_id: values.provider_id,
+              service_date: values.service_date ? values.service_date.format('YYYY-MM-DD') : null,
+              received_date: values.received_date ? values.received_date.format('YYYY-MM-DD') : null,
+              diagnosis_codes: values.diagnosis_codes ? values.diagnosis_codes.split(',').map(s => s.trim()).filter(Boolean) : [],
+              procedure_codes: values.procedure_codes ? values.procedure_codes.split(',').map(s => s.trim()).filter(Boolean) : [],
+              amount_billed: values.amount_billed,
+              amount_allowed: values.amount_allowed,
+              amount_paid: values.amount_paid,
+              status: values.status,
+              notes: values.notes,
+            };
+            const res = await fetch(CLAIMS_API(`/claims/${editing.id}`), {
+              method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload)
+            });
+            if (!res.ok) throw new Error('Update failed');
+            message.success('Claim updated');
+            setEditing(null);
+            fetchClaims();
+          } catch (e) {
+            if (e?.errorFields) return; // validation error
+            message.error(e.message || 'Failed to update');
+          }
+        };
+
+        return (
+          React.createElement('div', { className: 'container' },
+            React.createElement('div', { style: { display: 'flex', justifyContent: 'space-between', marginBottom: 16 } },
+              React.createElement(Title, { level: 3 }, 'Adjuster - Claims'),
+              React.createElement(Button, { onClick: fetchClaims, loading }, 'Refresh')
+            ),
+            React.createElement(Table, { rowKey: 'id', columns, dataSource: claims, loading, pagination: { pageSize: 10 } }),
+            React.createElement(Modal, { open: !!editing, title: 'Edit Claim', onCancel: () => setEditing(null), onOk: handleUpdate, width: 720 },
+              React.createElement(Form, { layout: 'vertical', form },
+                React.createElement(Form.Item, { name: 'member_id', label: 'Member ID', rules: [{ required: true }] }, React.createElement(Input)),
+                React.createElement(Form.Item, { name: 'provider_id', label: 'Provider ID', rules: [{ required: true }] }, React.createElement(Input)),
+                React.createElement(Form.Item, { name: 'service_date', label: 'Service Date', rules: [{ required: true }] }, React.createElement(DatePicker)),
+                React.createElement(Form.Item, { name: 'received_date', label: 'Received Date', rules: [{ required: true }] }, React.createElement(DatePicker)),
+                React.createElement(Form.Item, { name: 'diagnosis_codes', label: 'Diagnosis Codes (comma-separated)' }, React.createElement(Input)),
+                React.createElement(Form.Item, { name: 'procedure_codes', label: 'Procedure Codes (comma-separated)' }, React.createElement(Input)),
+                React.createElement(Form.Item, { name: 'amount_billed', label: 'Amount Billed', rules: [{ required: true }] }, React.createElement(InputNumber, { style: { width: '100%' }, min: 0, step: 0.01 })),
+                React.createElement(Form.Item, { name: 'amount_allowed', label: 'Amount Allowed' }, React.createElement(InputNumber, { style: { width: '100%' }, min: 0, step: 0.01 })),
+                React.createElement(Form.Item, { name: 'amount_paid', label: 'Amount Paid' }, React.createElement(InputNumber, { style: { width: '100%' }, min: 0, step: 0.01 })),
+                React.createElement(Form.Item, { name: 'status', label: 'Status', rules: [{ required: true }] },
+                  React.createElement(Select, { options: [
+                    { value: 'submitted', label: 'submitted' },
+                    { value: 'pending', label: 'pending' },
+                    { value: 'adjudicated', label: 'adjudicated' },
+                    { value: 'paid', label: 'paid' },
+                    { value: 'denied', label: 'denied' },
+                  ]})
+                ),
+                React.createElement(Form.Item, { name: 'notes', label: 'Notes' }, React.createElement(Input.TextArea, { rows: 3 }))
+              )
+            )
+          )
+        );
+      }
+
+      const root = createRoot(document.getElementById('root'));
+      root.render(React.createElement(Adjuster));
+    </script>
+  </body>
+</html>
+
