@@ -1,0 +1,23 @@
+# Copy this file to terraform.tfvars and update with your values
+
+# AWS Configuration
+aws_region = "us-east-2"
+environment = "dev"
+project_name = "healthcare-claims"
+
+# Database Configuration
+mongodb_uri = "mongodb+srv://username:password@cluster.mongodb.net/"
+claims_db_name = "uhg_claims"
+notifications_db_name = "web_notifications"
+
+# VAPID Configuration for Push Notifications
+vapid_public_key = "your_vapid_public_key_here"
+vapid_private_key = "your_vapid_private_key_here"
+vapid_subject = "mailto:admin@healthcare-claims.com"
+
+# CORS Configuration
+cors_origins = "https://localhost:4200,https://localhost:4201,https://yourdomain.com"
+
+# Lambda Package Paths (relative to terraform directory)
+claims_lambda_zip_path = "../build/claims-lambda.zip"
+notifications_lambda_zip_path = "../build/notifications-lambda.zip"
