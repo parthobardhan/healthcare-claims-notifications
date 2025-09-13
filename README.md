@@ -1,6 +1,6 @@
 # Healthcare Claims Demo
 
-A small end-to-end demo showing a healthcare claims API (FastAPI + MongoDB Atlas) and two lightweight frontends (Adjuster and Customer) built with React over CDN. It also integrates with a companion Web Notification service for push notifications.
+A small end-to-end demo showing a healthcare claims API (FastAPI + MongoDB Atlas) and two lightweight frontends (Adjuster and Patient) built with React over CDN. It also integrates with a companion Web Notification service for push notifications.
 
 ## Stack
 - Backend: Python 3.10+, FastAPI, Motor (MongoDB), Pydantic v2, Uvicorn
@@ -11,23 +11,34 @@ A small end-to-end demo showing a healthcare claims API (FastAPI + MongoDB Atlas
 ## Repository layout
 - `backend/` — FastAPI services (claims and notify) and tests
 - `frontend/`
-  - `adjuster-react/` — Adjuster portal (static React)
-  - `customer-react/` — Customer portal (static React + Service Worker consumption)
-  - `claims-portal/` — Optional Angular workspace with sample apps (alternative UI)
+  - `adjuster/` — Adjuster portal (static React)
+  - `patient/` — Patient portal (static React + Service Worker consumption)
+- `generate-vapid-keys.js` — Node.js utility to generate VAPID keys for push notifications
+- `package.json` — Node.js dependencies for VAPID key generation
 - `start.sh` — Convenience script to start claims API, notification API, and both frontends
+- `VAPID_KEYS.md` — Documentation for VAPID key configuration
+- `test-claim-update-notification.md` — Testing guide for the notification flow
 
 ## Prerequisites
 - Python 3.10+ installed
-- Node.js (only needed to generate VAPID keys for notifications or to run the optional Angular UI)
+- Node.js (needed to generate VAPID keys for notifications)
 - A MongoDB Atlas connection string with user/password and network access allowed (or a local MongoDB for testing)
 
 ## Quick start (development)
 
-### 1) Configure and install the Claims Backend
+### 1) Install Node.js dependencies (for VAPID keys)
+Install the required Node.js dependencies for VAPID key generation:
+
+```bash
+cd healthcare-claims
+npm install
+```
+
+### 2) Configure and install the Claims Backend
 Create a virtualenv, install dependencies, and add a `.env`:
 
 ```bash
-cd healthcare-claims/backend
+cd backend
 python -m venv venv
 source venv/bin/activate
 pip install -r requirements.txt
@@ -40,7 +51,7 @@ MONGODB_URI=mongodb+srv://<user>:<pass>@<cluster>/?retryWrites=true&w=majority
 DB_NAME=uhg_claims
 ```
 
-### 2) Configure the Notification Backend (integrated)
+### 3) Configure the Notification Backend (integrated)
 The notification service now lives under `backend/notify` and runs from the same virtualenv as claims. By default, it looks for VAPID PEM keys under `backend/notify/public_key.pem` and `backend/notify/private_key.pem`.
 
 Optionally, you can set environment variables in `backend/.env` instead of PEMs:
@@ -58,13 +69,25 @@ VAPID_PRIVATE_KEY=<your-private-key>
 # CORS_ORIGINS=http://localhost:4200,http://localhost:4201
 ```
 
-To generate VAPID keys yourself (one-time; requires Node):
+#### VAPID Key Generation
+This project includes a convenient Node.js utility to generate VAPID keys:
 
+```bash
+# Install dependencies (one-time)
+npm install
+
+# Generate new VAPID keys
+node generate-vapid-keys.js
+```
+
+Alternatively, use web-push directly:
 ```bash
 npx web-push generate-vapid-keys
 ```
 
-### 3) Start everything with one command
+See `VAPID_KEYS.md` for detailed configuration instructions.
+
+### 4) Start everything with one command
 From `healthcare-claims` directory:
 
 ```bash
@@ -75,11 +98,11 @@ This will start:
 - Claims API on http://localhost:8080 (health at `/health`)
 - Notify API on http://localhost:8000 (health at `/health`)
 - Adjuster portal (static) on http://localhost:4200
-- Customer portal (static) on http://localhost:4201
+- Patient portal (static) on http://localhost:4201
 
 Press Ctrl+C in that terminal to stop all.
 
-### 4) Seed sample claims data (optional but recommended)
+### 5) Seed sample claims data (optional but recommended)
 In a separate terminal:
 
 ```bash
@@ -109,26 +132,17 @@ uvicorn notify.app:app --reload --host 0.0.0.0 --port 8000
 ### Frontends (static)
 - Adjuster portal:
   ```bash
-  cd healthcare-claims/frontend/adjuster-react
+  cd healthcare-claims/frontend/adjuster
   python3 -m http.server 4200 --bind 0.0.0.0
   ```
-- Customer portal:
+- Patient portal:
   ```bash
-  cd healthcare-claims/frontend/customer-react
+  cd healthcare-claims/frontend/patient
   python3 -m http.server 4201 --bind 0.0.0.0
   ```
 
-## Optional Angular UI (alternative)
-There is an Angular workspace in `frontend/claims-portal` with sample apps for adjuster and customer.
-
-```bash
-cd healthcare-claims/frontend/claims-portal
-npm install
-npm run start_adjuster  # serves the adjuster app
-npm run start_customer  # serves the customer app
-```
-
-Ports and paths may conflict with the static servers above; run either the static or Angular version, not both on the same port.
+## Testing the notification flow
+See `test-claim-update-notification.md` for a detailed guide on testing the complete claim update notification workflow between the adjuster and patient portals.
 
 ## Environment variables
 
