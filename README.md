@@ -200,5 +200,9 @@ This is a demo meant for local exploration. For production hardening, consider:
 - CI for tests and linting
 - Dockerization and a unified compose for all services
 
+## Development Notes
+- Run `ruff check .` and `ruff format --check .` to verify code quality
+- Use `pytest -q` in the backend directory to run tests
+
 ## License
 For demo purposes only. Replace or add a license file as appropriate for your usage.
