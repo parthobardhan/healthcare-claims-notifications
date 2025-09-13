@@ -188,4 +188,3 @@ This is a demo meant for local exploration. For production hardening, consider:
 
 ## License
 For demo purposes only. Replace or add a license file as appropriate for your usage.
-

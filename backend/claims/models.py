@@ -64,4 +64,3 @@ class ClaimOut(ClaimBase):
                 "notes": "Initial submission",
             }
         }
-

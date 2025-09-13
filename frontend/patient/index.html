@@ -44,23 +44,76 @@
         return outputArray;
       }
 
-      async function registerPush(email) {
+      async function registerPush(email, memberId) {
         if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
           message.error('Push notifications are not supported in this browser.');
           return;
         }
+
+        console.log('🔔 Starting push notification registration...');
+        console.log('📧 Email:', email);
+        console.log('👤 Member ID:', memberId);
+
         try {
+          // Register service worker
+          console.log('📝 Registering service worker...');
           const reg = await navigator.serviceWorker.register('/sw.js');
           await navigator.serviceWorker.ready;
+          console.log('✅ Service worker registered successfully');
+
+          // Get VAPID public key
+          console.log('🔑 Fetching VAPID public key...');
           const keyRes = await fetch(NOTIFY_API('/vapid-public-key'));
           const { publicKey } = await keyRes.json();
-          const sub = await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: urlBase64ToUint8Array(publicKey) });
-          const resp = await fetch(NOTIFY_API('/subscribe') + (email ? `?email=${encodeURIComponent(email)}` : ''), {
-            method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(sub)
+          console.log('✅ VAPID public key received:', publicKey.substring(0, 20) + '...');
+
+          // Subscribe to push notifications
+          console.log('🔔 Subscribing to push notifications...');
+          const sub = await reg.pushManager.subscribe({
+            userVisibleOnly: true,
+            applicationServerKey: urlBase64ToUint8Array(publicKey)
           });
-          if (!resp.ok) throw new Error('Subscribe failed');
-          message.success('Subscribed for push notifications');
-        } catch (e) { console.error(e); message.error(e.message || 'Subscription failed'); }
+          console.log('✅ Push subscription created:', sub.endpoint.substring(0, 50) + '...');
+
+          // Send subscription to server
+          console.log('📤 Sending subscription to server...');
+          // Build query parameters for targeting
+          const params = new URLSearchParams();
+          if (email) params.append('email', email);
+          if (memberId) params.append('member_id', memberId);
+
+          const queryString = params.toString();
+          const url = NOTIFY_API('/subscribe') + (queryString ? `?${queryString}` : '');
+
+          const resp = await fetch(url, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(sub)
+          });
+
+          if (!resp.ok) {
+            const errorData = await resp.text();
+            console.error('❌ Server error:', errorData);
+            throw new Error(`Subscribe failed: ${resp.status}`);
+          }
+
+          const result = await resp.json();
+          console.log('✅ Server response:', result);
+
+          message.success('✅ Successfully subscribed to push notifications!');
+          console.log('🔔 You should now receive notifications. Try the test button.');
+
+        } catch (e) {
+          console.error('❌ Push registration error:', e);
+          message.error(`❌ Subscription failed: ${e.message || 'Unknown error'}`);
+
+          // Show detailed error info for debugging
+          console.error('🔍 Debugging info:');
+          console.error('  - Browser:', navigator.userAgent.includes('Chrome') ? 'Chrome' : navigator.userAgent.includes('Firefox') ? 'Firefox' : 'Other');
+          console.error('  - Permission:', Notification.permission);
+          console.error('  - ServiceWorker support:', 'serviceWorker' in navigator);
+          console.error('  - PushManager support:', 'PushManager' in window);
+        }
       }
 
       function Patient() {
@@ -86,20 +139,43 @@
               React.createElement(Input, { placeholder: 'Member ID', style: { width: 200 }, value: memberId, onChange: e => setMemberId(e.target.value) }),
               React.createElement(Button, { type: 'primary', onClick: lookup, disabled: !memberId }, 'Lookup Claims'),
               React.createElement(Input, { placeholder: 'Email for notifications', style: { width: 260 }, value: email, onChange: e => setEmail(e.target.value) }),
-              React.createElement(Button, { onClick: () => Notification.requestPermission().then(() => registerPush(email)) }, 'Subscribe to Push'),
+              React.createElement(Button, { onClick: () => Notification.requestPermission().then(() => registerPush(email, memberId)) }, 'Subscribe to Push'),
               React.createElement(Button, { type: 'dashed', onClick: async () => {
                 try {
+                  console.log('🚀 Sending test notification from Healthcare Claims...');
                   const resp = await fetch(NOTIFY_API('/notify'), {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ title: 'Test', body: 'Hello from Patient UI', url: location.origin })
+                    body: JSON.stringify({
+                      title: '🏥 Healthcare Claims Test',
+                      body: 'This is a test notification from the Healthcare Claims Patient Portal!',
+                      icon: '/favicon.ico',
+                      url: location.origin
+                    })
                   });
                   const data = await resp.json().catch(() => ({}));
-                  if (!resp.ok || data.ok === false) throw new Error('Notify failed');
-                  antd.message.success('Test notification posted');
+                  console.log('📥 Server response:', data);
+
+                  if (!resp.ok || data.ok === false) {
+                    console.error('❌ Server error:', resp.status, data);
+                    throw new Error(`Notify failed: ${resp.status}`);
+                  }
+
+                  console.log('✅ Test notification sent successfully');
+                  console.log('🔍 Check your browser for the notification. If not visible:');
+                  console.log('   • Look at the browser console for Service Worker logs');
+                  console.log('   • Check browser notification permissions');
+                  console.log('   • Try switching tabs or minimizing/restoring browser');
+
+                  if (data.successful > 0) {
+                    antd.message.success(`✅ Test notification sent! ${data.successful} successful deliveries`);
+                  } else {
+                    antd.message.warning('⚠️ Notification sent but no active subscriptions found');
+                  }
+
                 } catch (e) {
-                  console.error(e);
-                  antd.message.error(e.message || 'Failed to post notification');
+                  console.error('❌ Test notification error:', e);
+                  antd.message.error(`❌ Failed to send notification: ${e.message || 'Unknown error'}`);
                 }
               } }, 'Send Test Notification')
             ),
@@ -125,4 +201,3 @@
     </script>
   </body>
 </html>
-

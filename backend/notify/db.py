@@ -33,4 +33,3 @@ async def close_db():
         _client.close()
         _client = None
         _db = None
-

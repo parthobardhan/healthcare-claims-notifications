@@ -27,4 +27,3 @@ API
 Notes
 - Uses simple collection `claims`. Indexing can be added as needed.
 - All IDs are MongoDB ObjectId strings in responses.
-

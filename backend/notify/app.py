@@ -6,7 +6,13 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
 from .db import get_db, close_db
-from .models import User, PushSubscription, NotificationCreate, NotificationRecord, DeliveryRecord
+from .models import (
+    User,
+    PushSubscription,
+    NotificationCreate,
+    NotificationRecord,
+    DeliveryRecord,
+)
 from .notify import send_web_push, get_vapid
 
 from motor.motor_asyncio import AsyncIOMotorDatabase
@@ -14,7 +20,10 @@ from bson import ObjectId
 
 app = FastAPI(title="Web Notification Service (Integrated)")
 
-origins = os.getenv("CORS_ORIGINS", "http://localhost:4300,http://127.0.0.1:4300,http://localhost:4400,http://127.0.0.1:4400,http://localhost:5173,http://127.0.0.1:5173,http://localhost:8000").split(",")
+origins = os.getenv(
+    "CORS_ORIGINS",
+    "http://localhost:4300,http://127.0.0.1:4300,http://localhost:4400,http://127.0.0.1:4400,http://localhost:5173,http://127.0.0.1:5173,http://localhost:8000",
+).split(",")
 origin_pattern = r"https?://(localhost|127\.0\.0\.1)(:\d+)?$"
 app.add_middleware(
     CORSMiddleware,
@@ -46,33 +55,82 @@ async def vapid_public_key():
 
 
 @app.post("/subscribe")
-async def subscribe(sub: PushSubscription, db: AsyncIOMotorDatabase = Depends(get_db), email: Optional[str] = None):
-    user_query = {"email": email} if email else {"email": None}
+async def subscribe(
+    sub: PushSubscription,
+    db: AsyncIOMotorDatabase = Depends(get_db),
+    email: Optional[str] = None,
+    member_id: Optional[str] = None,
+):
+    # Try to find user by email first, then by member_id if provided
+    user_query = {}
+    if email:
+        user_query["email"] = email
+    elif member_id:
+        user_query["member_id"] = member_id
+    else:
+        user_query["email"] = None
+
     user = await db.users.find_one(user_query)
     if not user:
-        user_doc = {"email": email, "subscriptions": [sub.model_dump(mode="json")]}
+        user_doc = {
+            "email": email,
+            "member_id": member_id,
+            "subscriptions": [sub.model_dump(mode="json")],
+        }
         res = await db.users.insert_one(user_doc)
         user_id = str(res.inserted_id)
     else:
-        existing = next((s for s in user.get("subscriptions", []) if s.get("endpoint") == sub.endpoint), None)
+        existing = next(
+            (
+                s
+                for s in user.get("subscriptions", [])
+                if s.get("endpoint") == sub.endpoint
+            ),
+            None,
+        )
         if not existing:
-            await db.users.update_one(user_query, {"$push": {"subscriptions": sub.model_dump(mode="json")}})
+            # Also update member_id if provided
+            update_data = {"$push": {"subscriptions": sub.model_dump(mode="json")}}
+            if member_id and not user.get("member_id"):
+                update_data["$set"] = {"member_id": member_id}
+            await db.users.update_one(user_query, update_data)
         user_id = str(user["_id"])
     return {"ok": True, "userId": user_id}
 
 
 @app.post("/notify")
-async def notify(payload: NotificationCreate, db: AsyncIOMotorDatabase = Depends(get_db), user_id: Optional[str] = None):
+async def notify(
+    payload: NotificationCreate,
+    db: AsyncIOMotorDatabase = Depends(get_db),
+    user_id: Optional[str] = None,
+    member_id: Optional[str] = None,
+):
     record = payload.model_dump()
-    record.update({"audience": "user" if user_id else "all", "user_id": user_id})
+
+    # Determine audience based on targeting parameters
+    if user_id:
+        audience = "user"
+        target_id = user_id
+    elif member_id or payload.member_id:
+        audience = "member"
+        target_id = member_id or payload.member_id
+    else:
+        audience = "all"
+        target_id = None
+
+    record.update({"audience": audience, "user_id": user_id, "member_id": target_id})
     rec_res = await db.notifications.insert_one(record)
 
+    # Query users based on targeting
     cursor = None
     if user_id:
         try:
             cursor = db.users.find({"_id": ObjectId(user_id)})
         except Exception:
             raise HTTPException(status_code=400, detail="Invalid user_id")
+    elif member_id or payload.member_id:
+        target_member_id = member_id or payload.member_id
+        cursor = db.users.find({"member_id": target_member_id})
     else:
         cursor = db.users.find({})
 
@@ -81,19 +139,26 @@ async def notify(payload: NotificationCreate, db: AsyncIOMotorDatabase = Depends
         subs = user.get("subscriptions", [])
         for s in list(subs):
             try:
-                send_web_push(s, {
-                    "title": payload.title,
-                    "body": payload.body,
-                    "icon": payload.icon,
-                    "url": payload.url,
-                })
-                await db.deliveries.insert_one({
-                    "notification_id": str(rec_res.inserted_id),
-                    "user_id": str(user["_id"]),
-                    "endpoint": s.get("endpoint"),
-                    "status": "sent",
-                    "created_at": __import__("datetime").datetime.utcnow().isoformat()
-                })
+                send_web_push(
+                    s,
+                    {
+                        "title": payload.title,
+                        "body": payload.body,
+                        "icon": payload.icon,
+                        "url": payload.url,
+                    },
+                )
+                await db.deliveries.insert_one(
+                    {
+                        "notification_id": str(rec_res.inserted_id),
+                        "user_id": str(user["_id"]),
+                        "endpoint": s.get("endpoint"),
+                        "status": "sent",
+                        "created_at": __import__("datetime")
+                        .datetime.utcnow()
+                        .isoformat(),
+                    }
+                )
             except Exception as ex:
                 resp = getattr(ex, "response", None)
                 status = getattr(resp, "status_code", None)
@@ -103,29 +168,42 @@ async def notify(payload: NotificationCreate, db: AsyncIOMotorDatabase = Depends
                         body_text = getattr(resp, "text", "") or ""
                     except Exception:
                         body_text = str(getattr(resp, "body", "") or "")
-                if status in (404, 410) or (status == 400 and "VapidPkHashMismatch" in str(body_text)):
+                if status in (404, 410) or (
+                    status == 400 and "VapidPkHashMismatch" in str(body_text)
+                ):
                     removed.append(s.get("endpoint"))
-                    await db.users.update_one({"_id": user["_id"]}, {"$pull": {"subscriptions": {"endpoint": s.get("endpoint")}}})
-                    await db.deliveries.insert_one({
-                        "notification_id": str(rec_res.inserted_id),
-                        "user_id": str(user["_id"]),
-                        "endpoint": s.get("endpoint"),
-                        "status": "removed",
-                        "status_code": status,
-                        "error": str(ex),
-                        "created_at": __import__("datetime").datetime.utcnow().isoformat()
-                    })
+                    await db.users.update_one(
+                        {"_id": user["_id"]},
+                        {"$pull": {"subscriptions": {"endpoint": s.get("endpoint")}}},
+                    )
+                    await db.deliveries.insert_one(
+                        {
+                            "notification_id": str(rec_res.inserted_id),
+                            "user_id": str(user["_id"]),
+                            "endpoint": s.get("endpoint"),
+                            "status": "removed",
+                            "status_code": status,
+                            "error": str(ex),
+                            "created_at": __import__("datetime")
+                            .datetime.utcnow()
+                            .isoformat(),
+                        }
+                    )
                 else:
                     print(f"Web push failed for endpoint {s.get('endpoint')}: {ex}")
-                    await db.deliveries.insert_one({
-                        "notification_id": str(rec_res.inserted_id),
-                        "user_id": str(user.get("_id")),
-                        "endpoint": s.get("endpoint"),
-                        "status": "failed",
-                        "status_code": status,
-                        "error": str(ex),
-                        "created_at": __import__("datetime").datetime.utcnow().isoformat()
-                    })
+                    await db.deliveries.insert_one(
+                        {
+                            "notification_id": str(rec_res.inserted_id),
+                            "user_id": str(user.get("_id")),
+                            "endpoint": s.get("endpoint"),
+                            "status": "failed",
+                            "status_code": status,
+                            "error": str(ex),
+                            "created_at": __import__("datetime")
+                            .datetime.utcnow()
+                            .isoformat(),
+                        }
+                    )
 
     return {"ok": True, "notificationId": str(rec_res.inserted_id), "removed": removed}
 
@@ -155,4 +233,3 @@ async def list_deliveries(db: AsyncIOMotorDatabase = Depends(get_db)):
         doc["_id"] = str(doc["_id"])  # Convert ObjectId to str for response
         out.append(DeliveryRecord.model_validate(doc))
     return out
-

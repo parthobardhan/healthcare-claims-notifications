@@ -16,6 +16,7 @@ class User(BaseModel):
     id: Optional[str] = Field(default=None, alias="_id")
     email: Optional[str] = None
     name: Optional[str] = None
+    member_id: Optional[str] = None  # Added for healthcare claims targeting
     subscriptions: List[PushSubscription] = Field(default_factory=list)
 
 
@@ -24,6 +25,7 @@ class NotificationCreate(BaseModel):
     body: str
     icon: Optional[str] = None
     url: Optional[str] = None
+    member_id: Optional[str] = None  # Added for healthcare claims targeting
 
 
 class NotificationRecord(BaseModel):
@@ -32,8 +34,9 @@ class NotificationRecord(BaseModel):
     body: str
     icon: Optional[str] = None
     url: Optional[str] = None
-    audience: Literal["all", "user"] = "all"
+    audience: Literal["all", "user", "member"] = "all"
     user_id: Optional[str] = None
+    member_id: Optional[str] = None
 
 
 class DeliveryRecord(BaseModel):

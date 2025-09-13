@@ -1,0 +1,38 @@
+exclude: |-
+  ^backend/venv/|^frontend/node_modules/|\.log$
+
+default_stages: [commit, push]
+
+repos:
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v4.6.0
+    hooks:
+      - id: check-yaml
+      - id: check-toml
+      - id: check-json
+      - id: end-of-file-fixer
+      - id: trailing-whitespace
+      - id: mixed-line-ending
+        args: ["--fix=lf"]
+      - id: detect-private-key
+      - id: check-added-large-files
+        args: ["--maxkb=500"]
+      - id: check-merge-conflict
+
+  # Python formatter (safe and fast). If you already use Black, you can swap this with the Black hook.
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.6.8
+    hooks:
+      - id: ruff-format
+        name: ruff-format (Python formatter)
+        additional_dependencies: []
+        files: ^backend/|^backend/tests/|^backend/scripts/
+
+  # Optional: enable Ruff linter by uncommenting. It may introduce failures initially on existing code.
+  # - repo: https://github.com/astral-sh/ruff-pre-commit
+  #   rev: v0.6.8
+  #   hooks:
+  #     - id: ruff
+  #       name: ruff (Python linter)
+  #       args: ["--select=E,F,W", "--ignore=E501"]
+  #       files: ^backend/|^backend/tests/|^backend/scripts/

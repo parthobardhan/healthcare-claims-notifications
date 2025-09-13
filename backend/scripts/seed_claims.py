@@ -1,4 +1,3 @@
-import os
 import asyncio
 import random
 import argparse
@@ -9,6 +8,7 @@ from typing import List
 from motor.motor_asyncio import AsyncIOMotorClient
 import sys
 from pathlib import Path
+
 # Ensure backend dir (parent of scripts) is on sys.path to import app.*
 CURRENT_FILE = Path(__file__).resolve()
 BACKEND_DIR = CURRENT_FILE.parents[1]
@@ -98,14 +98,16 @@ def build_mock_claims(n: int = 20) -> List[dict]:
             "amount_allowed": allowed,
             "amount_paid": paid,
             "status": status,
-            "notes": random.choice([
-                None,
-                "Initial submission",
-                "Resubmitted with additional documentation",
-                "Requires medical review",
-                "Auto-adjudicated",
-                "Member responsibility applied",
-            ]),
+            "notes": random.choice(
+                [
+                    None,
+                    "Initial submission",
+                    "Resubmitted with additional documentation",
+                    "Requires medical review",
+                    "Auto-adjudicated",
+                    "Member responsibility applied",
+                ]
+            ),
         }
         # Remove None notes to keep field optional
         if doc["notes"] is None:
@@ -116,8 +118,12 @@ def build_mock_claims(n: int = 20) -> List[dict]:
 
 async def main():
     parser = argparse.ArgumentParser(description="Seed mock claims into MongoDB")
-    parser.add_argument("--reset", action="store_true", help="Drop the claims collection before seeding")
-    parser.add_argument("--count", type=int, default=20, help="Number of claims to insert (>=7)")
+    parser.add_argument(
+        "--reset", action="store_true", help="Drop the claims collection before seeding"
+    )
+    parser.add_argument(
+        "--count", type=int, default=20, help="Number of claims to insert (>=7)"
+    )
     args = parser.parse_args()
 
     if args.count < 7:
@@ -153,4 +159,3 @@ async def main():
 
 if __name__ == "__main__":
     asyncio.run(main())
-
