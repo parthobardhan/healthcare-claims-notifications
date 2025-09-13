@@ -57,3 +57,20 @@ Thumbs.db
 # Logs
 *.log
 logs/
+
+# Terraform
+*.tfstate
+*.tfstate.*
+*.tfplan
+.terraform/
+.terraform.lock.hcl
+
+# Lambda deployment packages
+*.zip
+
+# AWS CLI
+aws/
+awscliv2.zip
+
+# Environment configuration
+.envrc
