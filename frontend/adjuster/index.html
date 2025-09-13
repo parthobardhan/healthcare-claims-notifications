@@ -3,13 +3,15 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Adjuster - Healthcare Claims</title>
+    <title>Adjuster Portal - Claims</title>
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/antd@5.19.3/dist/reset.css" />
     <link rel="icon" href="data:," />
     <style>
       body { margin: 0; padding: 0; }
       #root { min-height: 100vh; }
       .container { max-width: 1200px; margin: 0 auto; padding: 24px; }
+      .header { display: flex; align-items: center; gap: 16px; margin-bottom: 24px; }
+      .uhc-logo { height: 50px; width: auto; }
     </style>
     <script crossorigin src="https://unpkg.com/react@18/umd/react.development.js"></script>
     <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
@@ -104,8 +106,23 @@
 
         return (
           React.createElement('div', { className: 'container' },
-            React.createElement('div', { style: { display: 'flex', justifyContent: 'space-between', marginBottom: 16 } },
-              React.createElement(Title, { level: 3 }, 'Adjuster - Claims'),
+            React.createElement('div', { className: 'header' },
+              React.createElement('div', {
+                className: 'uhc-logo',
+                style: {
+                  background: 'linear-gradient(135deg, #0066CC 0%, #004499 100%)',
+                  padding: '8px 16px',
+                  borderRadius: '4px',
+                  color: 'white',
+                  fontSize: '14px',
+                  fontWeight: 'bold',
+                  textAlign: 'center',
+                  minWidth: '180px'
+                }
+              }, 'UnitedHealthcare'),
+              React.createElement(Title, { level: 3, style: { margin: 0 } }, 'Adjuster Portal - Claims')
+            ),
+            React.createElement('div', { style: { display: 'flex', justifyContent: 'flex-end', marginBottom: 16 } },
               React.createElement(Button, { onClick: fetchClaims, loading }, 'Refresh')
             ),
             React.createElement(Table, { rowKey: 'id', columns, dataSource: claims, loading, pagination: { pageSize: 10 } }),
@@ -141,4 +158,3 @@
     </script>
   </body>
 </html>
-

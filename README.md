@@ -44,12 +44,19 @@ source venv/bin/activate
 pip install -r requirements.txt
 ```
 
-Create `backend/.env` with your MongoDB details:
+Create `backend/.env` with your configuration:
 
 ```bash
+# Copy from template and customize
+cp backend/env.example backend/.env
+
+# Edit .env with your MongoDB details:
 MONGODB_URI=mongodb+srv://<user>:<pass>@<cluster>/?retryWrites=true&w=majority
-DB_NAME=uhg_claims
+CLAIMS_DB_NAME=uhg_claims
+NOTIFICATIONS_DB_NAME=web_notifications
 ```
+
+📋 **See [ENVIRONMENT_CONFIGURATION.md](ENVIRONMENT_CONFIGURATION.md) for detailed environment setup options including VAPID keys management.**
 
 ### 3) Configure the Notification Backend (integrated)
 The notification service now lives under `backend/notify` and runs from the same virtualenv as claims. By default, it looks for VAPID PEM keys under `backend/notify/public_key.pem` and `backend/notify/private_key.pem`.
@@ -146,21 +153,22 @@ See `test-claim-update-notification.md` for a detailed guide on testing the comp
 
 ## Environment variables
 
-### Claims backend (`healthcare-claims/backend/.env`)
+### Environment Configuration (`healthcare-claims/backend/.env`)
 ```bash
-MONGODB_URI=...
-DB_NAME=uhg_claims
+# Database configuration
+MONGODB_URI=mongodb+srv://<user>:<pass>@<cluster>/?retryWrites=true&w=majority
+CLAIMS_DB_NAME=uhg_claims
+NOTIFICATIONS_DB_NAME=web_notifications
+
+# VAPID keys for push notifications
+VAPID_PUBLIC_KEY=your_public_key
+VAPID_PRIVATE_KEY=your_private_key
+VAPID_SUBJECT=mailto:admin@yourcompany.com
+
+# Optional: CORS_ORIGINS=http://localhost:4200,http://localhost:4201
 ```
 
-### Notification backend (env via `healthcare-claims/backend/.env`)
-```bash
-MONGODB_URI=...
-DB_NAME=web_notifications
-# Either set VAPID env vars (below) or place PEMs under backend/notify
-VAPID_PUBLIC_KEY=...
-VAPID_PRIVATE_KEY=...
-# Optional: CORS_ORIGINS=...
-```
+📋 **For complete configuration options, security best practices, and production deployment guidance, see [ENVIRONMENT_CONFIGURATION.md](ENVIRONMENT_CONFIGURATION.md).**
 
 ## How to run tests (backend)
 The claims backend includes pytest-based tests.

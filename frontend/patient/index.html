@@ -10,6 +10,8 @@
       body { margin: 0; padding: 0; }
       #root { min-height: 100vh; }
       .container { max-width: 1000px; margin: 0 auto; padding: 24px; }
+      .header { display: flex; align-items: center; gap: 16px; margin-bottom: 24px; }
+      .uhc-logo { height: 50px; width: auto; }
     </style>
     <script crossorigin src="https://unpkg.com/react@18/umd/react.development.js"></script>
     <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
@@ -134,7 +136,22 @@
 
         return (
           React.createElement('div', { className: 'container' },
-            React.createElement(Title, { level: 3 }, 'Patient Portal'),
+            React.createElement('div', { className: 'header' },
+              React.createElement('div', {
+                className: 'uhc-logo',
+                style: {
+                  background: 'linear-gradient(135deg, #0066CC 0%, #004499 100%)',
+                  padding: '8px 16px',
+                  borderRadius: '4px',
+                  color: 'white',
+                  fontSize: '14px',
+                  fontWeight: 'bold',
+                  textAlign: 'center',
+                  minWidth: '180px'
+                }
+              }, 'UnitedHealthcare'),
+              React.createElement(Title, { level: 3, style: { margin: 0 } }, 'Patient Portal')
+            ),
             React.createElement('div', { style: { display: 'flex', gap: 12, marginBottom: 16, flexWrap: 'wrap' } },
               React.createElement(Input, { placeholder: 'Member ID', style: { width: 200 }, value: memberId, onChange: e => setMemberId(e.target.value) }),
               React.createElement(Button, { type: 'primary', onClick: lookup, disabled: !memberId }, 'Lookup Claims'),

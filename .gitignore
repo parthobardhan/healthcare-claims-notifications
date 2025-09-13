@@ -27,8 +27,17 @@ ENV/
 
 # Environment variables
 .env
-.env.local
-.env.production
+.env.*
+.envrc
+
+# Environment configuration files (keep templates, ignore actual config)
+env.database
+env.vapid
+*.env.backup
+
+# Allow environment templates to be committed
+!env.example
+!env.template
 
 # Database
 *.db
@@ -57,3 +66,20 @@ Thumbs.db
 # Logs
 *.log
 logs/
+
+# Terraform
+*.tfstate
+*.tfstate.*
+*.tfplan
+.terraform/
+.terraform.lock.hcl
+
+# Lambda deployment packages
+*.zip
+
+# AWS CLI
+aws/
+awscliv2.zip
+
+# Environment configuration
+.envrc

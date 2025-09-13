@@ -2,9 +2,6 @@ import os
 from typing import Optional
 
 from motor.motor_asyncio import AsyncIOMotorClient, AsyncIOMotorDatabase
-from dotenv import load_dotenv
-
-load_dotenv()
 
 _client: Optional[AsyncIOMotorClient] = None
 _db: Optional[AsyncIOMotorDatabase] = None
@@ -16,7 +13,8 @@ def get_mongo_uri() -> str:
 
 
 def get_db_name() -> str:
-    name = os.getenv("DB_NAME", "uhg_claims")
+    # Try service-specific DB name first, then fall back to generic DB_NAME, then default
+    name = os.getenv("CLAIMS_DB_NAME") or os.getenv("DB_NAME", "uhg_claims")
     return name
 
 
