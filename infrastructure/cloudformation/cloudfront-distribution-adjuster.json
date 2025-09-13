@@ -1,0 +1,56 @@
+{
+  "CallerReference": "healthcare-claims-adjuster-1757790635",
+  "Comment": "CloudFront distribution for Healthcare Claims Adjuster Portal",
+  "DefaultCacheBehavior": {
+    "TargetOriginId": "S3-healthcare-claims-adjuster-portal",
+    "ViewerProtocolPolicy": "redirect-to-https",
+    "TrustedSigners": {
+      "Enabled": false,
+      "Quantity": 0
+    },
+    "ForwardedValues": {
+      "QueryString": false,
+      "Cookies": {
+        "Forward": "none"
+      },
+      "Headers": {
+        "Quantity": 3,
+        "Items": [
+          "Origin",
+          "Access-Control-Request-Method",
+          "Access-Control-Request-Headers"
+        ]
+      }
+    },
+    "MinTTL": 0,
+    "DefaultTTL": 86400,
+    "MaxTTL": 31536000
+  },
+  "Origins": {
+    "Quantity": 1,
+    "Items": [
+      {
+        "Id": "S3-healthcare-claims-adjuster-portal",
+        "DomainName": "healthcare-claims-adjuster-portal.s3-website.us-east-2.amazonaws.com",
+        "CustomOriginConfig": {
+          "HTTPPort": 80,
+          "HTTPSPort": 443,
+          "OriginProtocolPolicy": "http-only"
+        }
+      }
+    ]
+  },
+  "CustomErrorResponses": {
+    "Quantity": 1,
+    "Items": [
+      {
+        "ErrorCode": 404,
+        "ResponsePagePath": "/index.html",
+        "ResponseCode": "200",
+        "ErrorCachingMinTTL": 300
+      }
+    ]
+  },
+  "Enabled": true,
+  "PriceClass": "PriceClass_100"
+}
