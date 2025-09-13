@@ -32,7 +32,7 @@ variable "vapid_subject" {
 variable "cors_origins" {
   description = "CORS allowed origins"
   type        = string
-  default     = "http://localhost:4300,http://127.0.0.1:4300,http://localhost:4400,http://127.0.0.1:4400,http://localhost:5173,http://127.0.0.1:5173,http://localhost:8000"
+  default     = "http://localhost:4300,http://127.0.0.1:4300,http://localhost:4400,http://127.0.0.1:4400,http://localhost:5173,http://127.0.0.1:5173,http://localhost:8000,https://d2n40imib0jcpm.cloudfront.net"
 }
 
 variable "environment" {
