@@ -26,7 +26,7 @@
       const { Table, Button, Modal, Form, Input, DatePicker, InputNumber, Select, Typography, message } = antd;
       const { Title } = Typography;
 
-      const CLAIMS_API = (path = "") => `http://localhost:8080${path}`;
+      const CLAIMS_API = (path = "") => `https://hjcdq2dmtf.execute-api.us-east-2.amazonaws.com/dev/claims${path}`;
 
       function Adjuster() {
         const [claims, setClaims] = useState([]);
