@@ -53,7 +53,7 @@ async def send_claim_update_notification(
             "title": title,
             "body": body,
             "icon": "/favicon.ico",
-            "url": "http://localhost:4201/",
+            "url": "https://d1s8iivd1nt95u.cloudfront.net/",
             "member_id": member_id,  # Target specific member
         }
 

@@ -1,13 +1,12 @@
 import asyncio
 import random
 import argparse
-
+import sys
 from datetime import date, timedelta
 from typing import List
+from pathlib import Path
 
 from motor.motor_asyncio import AsyncIOMotorClient
-import sys
-from pathlib import Path
 
 # Ensure backend dir (parent of scripts) is on sys.path to import app.*
 CURRENT_FILE = Path(__file__).resolve()
@@ -15,10 +14,8 @@ BACKEND_DIR = CURRENT_FILE.parents[1]
 if str(BACKEND_DIR) not in sys.path:
     sys.path.insert(0, str(BACKEND_DIR))
 
-
-# Reuse claims module DB settings
-from claims.db import get_mongo_uri, get_db_name
-from claims.models import ClaimStatus
+from claims.db import get_mongo_uri, get_db_name  # noqa: E402
+from claims.models import ClaimStatus  # noqa: E402
 
 
 DIAG_CODES = ["E11.9", "I10", "J06.9", "M54.5", "K21.9", "N39.0", "E78.5"]

@@ -22,7 +22,7 @@ app = FastAPI(title="Web Notification Service (Integrated)")
 
 origins = os.getenv(
     "CORS_ORIGINS",
-    "http://localhost:4300,http://127.0.0.1:4300,http://localhost:4400,http://127.0.0.1:4400,http://localhost:5173,http://127.0.0.1:5173,http://localhost:8000",
+    "http://localhost:4300,http://127.0.0.1:4300,http://localhost:4400,http://127.0.0.1:4400,http://localhost:5173,http://127.0.0.1:5173,http://localhost:8000,https://d2i8inlb41h30r.cloudfront.net,https://d1s8iivd1nt95u.cloudfront.net",
 ).split(",")
 origin_pattern = r"https?://(localhost|127\.0\.0\.1)(:\d+)?$"
 app.add_middleware(
