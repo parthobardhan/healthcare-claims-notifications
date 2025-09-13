@@ -135,6 +135,8 @@ async def notify(
         cursor = db.users.find({})
 
     removed = []
+    successful = 0
+    failed = 0
     async for user in cursor:
         subs = user.get("subscriptions", [])
         for s in list(subs):
@@ -148,6 +150,7 @@ async def notify(
                         "url": payload.url,
                     },
                 )
+                successful += 1
                 await db.deliveries.insert_one(
                     {
                         "notification_id": str(rec_res.inserted_id),
@@ -160,6 +163,7 @@ async def notify(
                     }
                 )
             except Exception as ex:
+                failed += 1
                 resp = getattr(ex, "response", None)
                 status = getattr(resp, "status_code", None)
                 body_text = ""
@@ -205,7 +209,13 @@ async def notify(
                         }
                     )
 
-    return {"ok": True, "notificationId": str(rec_res.inserted_id), "removed": removed}
+    return {
+        "ok": True,
+        "notificationId": str(rec_res.inserted_id),
+        "removed": removed,
+        "successful": successful,
+        "failed": failed,
+    }
 
 
 @app.get("/users", response_model=List[User])
