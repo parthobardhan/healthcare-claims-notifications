@@ -14,7 +14,7 @@ vapid_private_key = "aGVhbHRoY2FyZS1jbGFpbXMtdmFwaWQtcHJpdmF0ZS1rZXk"
 vapid_subject = "mailto:admin@healthcare-claims.com"
 
 # CORS Configuration
-cors_origins = "https://localhost:4200,https://localhost:4201,https://yourdomain.com"
+cors_origins = "https://localhost:4200,https://localhost:4201,https://yourdomain.com,https://d2i8inlb41h30r.cloudfront.net"
 
 # Lambda Package Paths (relative to terraform directory)
 claims_lambda_zip_path = "../build/claims-lambda.zip"
