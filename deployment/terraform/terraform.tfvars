@@ -9,9 +9,9 @@ claims_db_name = "uhg_claims"
 notifications_db_name = "web_notifications"
 
 # VAPID Configuration for Push Notifications
-vapid_public_key = "BNWw6ea0-Iydr7cB-C3-Uv1t0zf8OewVLdlU7GBN-t_9eTAY2u-FPiRiSKOFhXRdCJO5FeHnlVgCaXmHcCNiMdI"
-vapid_private_key = "aGVhbHRoY2FyZS1jbGFpbXMtdmFwaWQtcHJpdmF0ZS1rZXk"
-vapid_subject = "mailto:admin@healthcare-claims.com"
+vapid_public_key = "BJN41H6Gq6uEkXrs8-zMNtDmdF13IlrtUro861EZJVpCJkrIJUTbjhnHsAvqsS1R2srVtck3rjMnbENgNOPx5JU"
+vapid_private_key = "OOePSDgeONlU9txtdoC8hv8tD9EpYzmWbZi-czqFW3I"
+vapid_subject = "mailto:you@example.com"
 
 # CORS Configuration
 cors_origins = "https://localhost:4200,https://localhost:4201,https://yourdomain.com,https://d2i8inlb41h30r.cloudfront.net,https://d1s8iivd1nt95u.cloudfront.net"
