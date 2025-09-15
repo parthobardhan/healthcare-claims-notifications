@@ -26,7 +26,11 @@
       const { Table, Button, Modal, Form, Input, DatePicker, InputNumber, Select, Typography, message } = antd;
       const { Title } = Typography;
 
-      const CLAIMS_API = (path = "") => `http://localhost:8080${path}`;
+      const CLAIMS_API = (path = "") => {
+        const isProduction = window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1';
+        const baseUrl = isProduction ? '/api/claims' : 'http://localhost:8080';
+        return `${baseUrl}${path}`;
+      };
 
       function Adjuster() {
         const [claims, setClaims] = useState([]);

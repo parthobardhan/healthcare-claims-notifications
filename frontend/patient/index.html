@@ -32,8 +32,16 @@
       const { Typography, Input, Button, Table, message } = window.antd;
       const { Title } = Typography;
 
-      const CLAIMS_API = (path = "") => `http://localhost:8080${path}`;
-      const NOTIFY_API = (path = "") => `http://localhost:8000${path}`;
+      const CLAIMS_API = (path = "") => {
+        const isProduction = window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1';
+        const baseUrl = isProduction ? '/api/claims' : 'http://localhost:8080';
+        return `${baseUrl}${path}`;
+      };
+      const NOTIFY_API = (path = "") => {
+        const isProduction = window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1';
+        const baseUrl = isProduction ? '/api/notify' : 'http://localhost:8000';
+        return `${baseUrl}${path}`;
+      };
 
       function urlBase64ToUint8Array(base64String) {
         const padding = '='.repeat((4 - (base64String.length % 4)) % 4);
