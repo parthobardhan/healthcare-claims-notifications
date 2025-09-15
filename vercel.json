@@ -1,32 +1,26 @@
 {
   "version": 2,
-  "routes": [
-    {
-      "src": "/adjuster",
-      "dest": "/frontend/adjuster/index.html"
-    },
-    {
-      "src": "/adjuster/(.*)",
-      "dest": "/frontend/adjuster/$1"
-    },
-    {
-      "src": "/patient",
-      "dest": "/frontend/patient/index.html"
-    },
-    {
-      "src": "/patient/(.*)",
-      "dest": "/frontend/patient/$1"
-    },
-    {
-      "src": "/sw.js",
-      "dest": "/frontend/patient/sw.js",
-      "headers": {
-        "Service-Worker-Allowed": "/",
-        "Cache-Control": "no-cache"
-      }
-    }
-  ],
   "rewrites": [
+    {
+      "source": "/adjuster",
+      "destination": "/frontend/adjuster/index.html"
+    },
+    {
+      "source": "/adjuster/(.*)",
+      "destination": "/frontend/adjuster/$1"
+    },
+    {
+      "source": "/patient",
+      "destination": "/frontend/patient/index.html"
+    },
+    {
+      "source": "/patient/(.*)",
+      "destination": "/frontend/patient/$1"
+    },
+    {
+      "source": "/sw.js",
+      "destination": "/frontend/patient/sw.js"
+    },
     {
       "source": "/api/claims/(.*)",
       "destination": "https://hjcdq2dmtf.execute-api.us-east-2.amazonaws.com/dev/claims/$1"
