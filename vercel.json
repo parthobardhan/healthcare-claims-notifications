@@ -1,0 +1,61 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "rewrites": [
+    {
+      "source": "/adjuster",
+      "destination": "/frontend/adjuster/index.html"
+    },
+    {
+      "source": "/adjuster/(.*)",
+      "destination": "/frontend/adjuster/index.html"
+    },
+    {
+      "source": "/patient",
+      "destination": "/frontend/patient/index.html"
+    },
+    {
+      "source": "/patient/(.*)",
+      "destination": "/frontend/patient/index.html"
+    },
+    {
+      "source": "/sw.js",
+      "destination": "/frontend/patient/sw.js"
+    },
+    {
+      "source": "/api/claims/(.*)",
+      "destination": "https://hjcdq2dmtf.execute-api.us-east-2.amazonaws.com/dev/claims/$1"
+    },
+    {
+      "source": "/api/notify/(.*)",
+      "destination": "https://hjcdq2dmtf.execute-api.us-east-2.amazonaws.com/dev/notifications/$1"
+    }
+  ],
+  "headers": [
+    {
+      "source": "/frontend/patient/sw.js",
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "public, max-age=0, must-revalidate"
+        },
+        {
+          "key": "Service-Worker-Allowed",
+          "value": "/"
+        }
+      ]
+    },
+    {
+      "source": "/sw.js",
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "public, max-age=0, must-revalidate"
+        },
+        {
+          "key": "Service-Worker-Allowed",
+          "value": "/"
+        }
+      ]
+    }
+  ]
+}
