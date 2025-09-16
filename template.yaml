@@ -1,0 +1,108 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: Healthcare Claims Notifications Lambda Functions
+
+Globals:
+  Function:
+    Timeout: 30
+    MemorySize: 512
+    Runtime: python3.12
+    Environment:
+      Variables:
+        MONGODB_URI: !Ref MongoDBURI
+        VAPID_PUBLIC_KEY: !Ref VAPIDPublicKey
+        VAPID_PRIVATE_KEY: !Ref VAPIDPrivateKey
+        VAPID_SUBJECT: !Ref VAPIDSubject
+
+Parameters:
+  MongoDBURI:
+    Type: String
+    Description: MongoDB Atlas connection string
+    NoEcho: true
+  ClaimsDBName:
+    Type: String
+    Default: uhg_claims
+    Description: Database name for claims service
+  NotificationsDBName:
+    Type: String
+    Default: web_notifications
+    Description: Database name for notifications service
+  VAPIDPublicKey:
+    Type: String
+    Description: VAPID public key for web push notifications
+  VAPIDPrivateKey:
+    Type: String
+    Description: VAPID private key for web push notifications
+    NoEcho: true
+  VAPIDSubject:
+    Type: String
+    Default: mailto:admin@healthcareclaims.com
+    Description: VAPID subject for web push notifications
+  CORSOrigins:
+    Type: String
+    Default: "*"
+    Description: CORS origins for API Gateway
+
+Resources:
+  ClaimsFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: backend/
+      Handler: claims.lambda_handler.lambda_handler
+      Environment:
+        Variables:
+          CLAIMS_DB_NAME: !Ref ClaimsDBName
+      Events:
+        ClaimsAPI:
+          Type: Api
+          Properties:
+            Path: /claims/{proxy+}
+            Method: ANY
+            RestApiId: !Ref HealthcareAPI
+        ClaimsRoot:
+          Type: Api
+          Properties:
+            Path: /claims
+            Method: ANY
+            RestApiId: !Ref HealthcareAPI
+
+  NotificationFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: backend/
+      Handler: notify.lambda_handler.lambda_handler
+      Environment:
+        Variables:
+          NOTIFICATIONS_DB_NAME: !Ref NotificationsDBName
+          CORS_ORIGINS: !Ref CORSOrigins
+      Events:
+        NotifyAPI:
+          Type: Api
+          Properties:
+            Path: /notify/{proxy+}
+            Method: ANY
+            RestApiId: !Ref HealthcareAPI
+        NotifyRoot:
+          Type: Api
+          Properties:
+            Path: /notify
+            Method: ANY
+            RestApiId: !Ref HealthcareAPI
+
+  HealthcareAPI:
+    Type: AWS::Serverless::Api
+    Properties:
+      StageName: prod
+      Cors:
+        AllowMethods: "'*'"
+        AllowHeaders: "'*'"
+        AllowOrigin: !Sub "'${CORSOrigins}'"
+        AllowCredentials: true
+
+Outputs:
+  ClaimsAPI:
+    Description: "API Gateway endpoint URL for Claims function"
+    Value: !Sub "https://${HealthcareAPI}.execute-api.${AWS::Region}.amazonaws.com/prod/claims/"
+  NotificationAPI:
+    Description: "API Gateway endpoint URL for Notification function"
+    Value: !Sub "https://${HealthcareAPI}.execute-api.${AWS::Region}.amazonaws.com/prod/notify/"

@@ -8,21 +8,31 @@ _db: Optional[AsyncIOMotorDatabase] = None
 
 
 def get_mongo_uri() -> str:
-    return os.getenv("MONGODB_URI", "mongodb://localhost:27017")
+    uri = os.getenv("MONGODB_URI")
+    if not uri:
+        raise ValueError("MONGODB_URI environment variable is required")
+    return uri
 
 
 def get_db_name() -> str:
-    # Try service-specific DB name first, then fall back to generic DB_NAME, then default
-    name = os.getenv("NOTIFICATIONS_DB_NAME") or os.getenv(
-        "DB_NAME", "web_notifications"
-    )
+    name = os.getenv("NOTIFICATIONS_DB_NAME") or os.getenv("DB_NAME")
+    if not name:
+        raise ValueError("NOTIFICATIONS_DB_NAME environment variable is required")
     return name
 
 
 async def get_db() -> AsyncIOMotorDatabase:
     global _client, _db
     if _db is None:
-        _client = AsyncIOMotorClient(get_mongo_uri())
+        _client = AsyncIOMotorClient(
+            get_mongo_uri(),
+            maxPoolSize=1,
+            minPoolSize=0,
+            maxIdleTimeMS=30000,
+            serverSelectionTimeoutMS=5000,
+            connectTimeoutMS=5000,
+            socketTimeoutMS=5000,
+        )
         _db = _client[get_db_name()]
     return _db
 

@@ -170,6 +170,50 @@ VAPID_SUBJECT=mailto:admin@yourcompany.com
 
 📋 **For complete configuration options, security best practices, and production deployment guidance, see [ENVIRONMENT_CONFIGURATION.md](ENVIRONMENT_CONFIGURATION.md).**
 
+## Lambda Deployment
+
+This project includes AWS Lambda deployment support using AWS SAM.
+
+### Prerequisites
+- AWS CLI configured with appropriate permissions
+- AWS SAM CLI installed
+- MongoDB Atlas cluster with network access configured for Lambda
+
+### Environment Variables for Lambda
+```bash
+# Required for both services
+MONGODB_URI=mongodb+srv://username:password@cluster.mongodb.net/
+CLAIMS_DB_NAME=uhg_claims
+NOTIFICATIONS_DB_NAME=web_notifications
+
+# Required for notification service
+VAPID_PUBLIC_KEY=your_vapid_public_key
+VAPID_PRIVATE_KEY=your_vapid_private_key
+VAPID_SUBJECT=mailto:admin@healthcareclaims.com
+
+# Optional CORS configuration
+CORS_ORIGINS=https://your-frontend-domain.com
+```
+
+### Deploy to AWS Lambda
+```bash
+# Make deployment script executable
+chmod +x deploy.sh
+
+# Deploy using SAM
+./deploy.sh
+```
+
+### Test Lambda Endpoints
+After deployment, test the endpoints:
+```bash
+# Test Claims API health
+curl https://your-api-gateway-url/prod/claims/health
+
+# Test Notification API health
+curl https://your-api-gateway-url/prod/notify/health
+```
+
 ## How to run tests (backend)
 The claims backend includes pytest-based tests.
 
