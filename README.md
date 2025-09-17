@@ -1,28 +1,45 @@
 # Healthcare Claims Demo
 
-A small end-to-end demo showing a healthcare claims API (FastAPI + MongoDB Atlas) and two lightweight frontends (Adjuster and Patient) built with React over CDN. It also integrates with a companion Web Notification service for push notifications.
+A comprehensive end-to-end healthcare claims management system featuring a FastAPI backend with MongoDB Atlas and two lightweight React frontends. The system includes real-time push notifications for claim status updates.
 
-## Stack
-- Backend: Python 3.10+, FastAPI, Motor (MongoDB), Pydantic v2, Uvicorn
-- Frontends: Static React (served via `python -m http.server`) + Ant Design over CDN
-- Notifications: FastAPI service under `backend/notify`
-- Database: MongoDB Atlas
+## Architecture Overview
+- **Backend Services**: Claims API + Notification API (integrated FastAPI services)
+- **Frontend Portals**: Adjuster Portal (claim management) + Patient Portal (claim viewing)
+- **Real-time Notifications**: Web Push notifications for claim status updates
+- **Database**: MongoDB Atlas with separate collections for claims and notifications
 
-## Repository layout
-- `backend/` — FastAPI services (claims and notify) and tests
-- `frontend/`
-  - `adjuster/` — Adjuster portal (static React)
-  - `patient/` — Patient portal (static React + Service Worker consumption)
-- `generate-vapid-keys.js` — Node.js utility to generate VAPID keys for push notifications
-- `package.json` — Node.js dependencies for VAPID key generation
-- `start.sh` — Convenience script to start claims API, notification API, and both frontends
-- `VAPID_KEYS.md` — Documentation for VAPID key configuration
-- `test-claim-update-notification.md` — Testing guide for the notification flow
+## Technology Stack
+- **Backend**: Python 3.11+, FastAPI 0.112+, Motor (MongoDB), Pydantic v2, Uvicorn
+- **Frontend**: React 18 (CDN) + Ant Design 5.19+ (static serving via Python HTTP server)
+- **Database**: MongoDB Atlas (or local MongoDB)
+- **Notifications**: Web Push API with VAPID keys, pywebpush
+- **Testing**: pytest + pytest-asyncio
+
+## Project Structure
+```
+healthcare-claims/
+├── backend/                     # Backend services
+│   ├── claims/                  # Claims API service
+│   ├── notify/                  # Push notification service
+│   ├── scripts/                 # Utility scripts (data seeding)
+│   ├── tests/                   # Test suite
+│   ├── requirements.txt         # Python dependencies
+│   └── env.example             # Environment configuration template
+├── frontend/                    # Frontend applications
+│   ├── adjuster/               # Adjuster portal (static React)
+│   └── patient/                # Patient portal (static React + Service Worker)
+├── start.sh                    # One-command startup script
+├── generate-vapid-keys.js      # VAPID key generation utility
+├── package.json               # Node.js dependencies (VAPID keys)
+├── ENVIRONMENT_CONFIGURATION.md # Comprehensive environment setup guide
+└── test-claim-update-notification.md # Notification testing guide
+```
 
 ## Prerequisites
-- Python 3.10+ installed
-- Node.js (needed to generate VAPID keys for notifications)
-- A MongoDB Atlas connection string with user/password and network access allowed (or a local MongoDB for testing)
+- **Python 3.11+** installed with pip
+- **Node.js** (for VAPID key generation)
+- **MongoDB Atlas** account with connection string OR local MongoDB instance
+- **Modern web browser** with push notification support
 
 ## Quick start (development)
 
@@ -192,25 +209,83 @@ Notes:
 - `DELETE /claims/{id}`           → delete
 
 ## Troubleshooting
-- uvicorn: command not found
-  - Activate the correct virtualenv (`source venv/bin/activate`) where you installed requirements.
-- MongoDB connection errors
-  - Verify `MONGODB_URI` in your `.env` and that your Atlas IP Access List includes your IP. Check `DB_NAME`.
-- CORS issues
-  - Dev configs allow localhost origins by default. If needed, set `CORS_ORIGINS` in the notification backend `.env`.
-- Ports already in use (4200/4201/8000/8080)
-  - Stop any other process using those ports or edit the commands to use different ports.
 
-## Project status
-This is a demo meant for local exploration. For production hardening, consider:
-- Authn/z, request validation, rate limiting
-- Indexes and schema governance in MongoDB
-- CI for tests and linting
-- Dockerization and a unified compose for all services
+### Common Issues
 
-## Development Notes
-- Run `ruff check .` and `ruff format --check .` to verify code quality
-- Use `pytest -q` in the backend directory to run tests
+**Command not found errors:**
+- `uvicorn: command not found` → Activate virtualenv: `source backend/venv/bin/activate`
+- `node: command not found` → Install Node.js for VAPID key generation
+
+**Database Connection:**
+- Connection timeout → Check `MONGODB_URI` format and network access
+- Authentication failed → Verify username/password in connection string
+- IP access denied → Add your IP to Atlas IP Access List
+- Wrong database → Verify `CLAIMS_DB_NAME` and `NOTIFICATIONS_DB_NAME` settings
+
+**Service Startup:**
+- Ports in use (4200/4201/8000/8080) → Kill existing processes or change ports
+- Dependencies missing → Run `pip install -r requirements.txt` in activated venv
+- Environment variables → Check `.env` file exists and has correct format
+
+**Push Notifications:**
+- Notifications not working → Regenerate VAPID keys with `node generate-vapid-keys.js`
+- CORS errors → Update `CORS_ORIGINS` in `.env` file
+- Service worker issues → Clear browser cache and re-register
+
+**Frontend Issues:**
+- UI not loading → Check browser console for CDN errors (antd, React)
+- API calls failing → Verify backend services are running on correct ports
+- Static files not served → Ensure `python -m http.server` is running in correct directories
+
+### Debug Commands
+```bash
+# Check service health
+curl http://localhost:8080/health  # Claims API
+curl http://localhost:8000/health  # Notify API
+
+# Test database connection
+cd backend && source venv/bin/activate
+python -c "import asyncio; from claims.db import get_db; print('DB OK')"
+
+# Verify VAPID configuration
+curl http://localhost:8000/vapid-public-key
+```
+
+## Project Status & Roadmap
+
+### Current Status
+This is a **development-ready demo** suitable for:
+- Local development and testing
+- Learning healthcare claims workflow patterns
+- Prototyping push notification features
+- Demonstrating full-stack integration
+
+### Production Considerations
+For production deployment, consider implementing:
+- **Security**: Authentication/authorization, input validation, rate limiting
+- **Database**: Proper indexing, schema governance, connection pooling
+- **Infrastructure**: Docker containerization, load balancing, monitoring
+- **CI/CD**: Automated testing, code quality checks, deployment pipelines
+- **Compliance**: HIPAA compliance measures, audit logging, data encryption
+
+## Development Guidelines
+
+### Code Quality
+```bash
+# Run linting (if ruff is installed)
+ruff check .
+ruff format --check .
+
+# Run tests
+cd backend && source venv/bin/activate && pytest -q
+```
+
+### Development Workflow
+1. Make changes to backend code
+2. Services auto-reload with `--reload` flag
+3. Test API changes via frontend portals
+4. Use browser dev tools to debug notification flow
+5. Check `backend/backend.log` for service logs
 
 ## License
 For demo purposes only. Replace or add a license file as appropriate for your usage.

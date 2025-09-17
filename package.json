@@ -1,7 +1,7 @@
 {
   "name": "healthcare-claims",
   "version": "1.0.0",
-  "description": "A small end-to-end demo showing a healthcare claims API (FastAPI + MongoDB Atlas) and two lightweight frontends (Adjuster and Customer) built with React over CDN. It also integrates with a companion Web Notification service for push notifications.",
+  "description": "A comprehensive end-to-end healthcare claims management system featuring a FastAPI backend with MongoDB Atlas and two lightweight frontends (Adjuster and Patient) built with React over CDN. It also integrates with a companion Web Notification service for push notifications.",
   "main": "index.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"

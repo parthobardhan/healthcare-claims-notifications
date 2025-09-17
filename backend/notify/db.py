@@ -30,6 +30,7 @@ async def get_db() -> AsyncIOMotorDatabase:
 async def close_db():
     global _client, _db
     if _client is not None:
+        # Close the Motor client (synchronous operation)
         _client.close()
         _client = None
         _db = None
