@@ -11,7 +11,7 @@ from notify.notify import get_vapid, send_web_push
 
 
 @pytest.fixture
-def mock_notify_db():
+def mock_db():
     """Mock database for notify service tests."""
     db = AsyncMock()
     
@@ -54,10 +54,10 @@ def mock_notify_db():
 
 
 @pytest.fixture(autouse=True)
-def setup_notify_test_db(mock_notify_db):
+def setup_notify_test_db(mock_db):
     """Setup mock database for notify service."""
     def _override_db():
-        return mock_notify_db
+        return mock_db
 
     app.dependency_overrides[get_db] = _override_db
     yield
@@ -74,11 +74,11 @@ async def test_health_endpoint():
 
 
 @pytest.mark.asyncio
-@patch("notify.notify.get_vapid")
+@patch("notify.app.get_vapid")
 async def test_vapid_public_key_endpoint(mock_get_vapid):
     """Test VAPID public key endpoint."""
     mock_get_vapid.return_value = {"publicKey": "test-public-key"}
-    
+
     async with AsyncClient(app=app, base_url="http://test") as ac:
         r = await ac.get("/vapid-public-key")
         assert r.status_code == 200
@@ -86,12 +86,12 @@ async def test_vapid_public_key_endpoint(mock_get_vapid):
 
 
 @pytest.mark.asyncio
-async def test_subscribe_new_user_with_email(mock_notify_db):
+async def test_subscribe_new_user_with_email(mock_db):
     """Test subscribing a new user with email."""
-    mock_notify_db.users.find_one.return_value = None  # User doesn't exist
+    mock_db.users.find_one.return_value = None  # User doesn't exist
     mock_insert_result = AsyncMock()
     mock_insert_result.inserted_id = ObjectId()
-    mock_notify_db.users.insert_one.return_value = mock_insert_result
+    mock_db.users.insert_one.return_value = mock_insert_result
 
     subscription_data = {
         "endpoint": "https://fcm.googleapis.com/fcm/send/test",
@@ -112,17 +112,17 @@ async def test_subscribe_new_user_with_email(mock_notify_db):
         assert response_data["ok"] is True
         assert "userId" in response_data
 
-    mock_notify_db.users.find_one.assert_called_once_with({"email": "test@example.com"})
-    mock_notify_db.users.insert_one.assert_called_once()
+    mock_db.users.find_one.assert_called_once_with({"email": "test@example.com"})
+    mock_db.users.insert_one.assert_called_once()
 
 
 @pytest.mark.asyncio
-async def test_subscribe_new_user_with_member_id(mock_notify_db):
+async def test_subscribe_new_user_with_member_id(mock_db):
     """Test subscribing a new user with member_id."""
-    mock_notify_db.users.find_one.return_value = None
+    mock_db.users.find_one.return_value = None
     mock_insert_result = AsyncMock()
     mock_insert_result.inserted_id = ObjectId()
-    mock_notify_db.users.insert_one.return_value = mock_insert_result
+    mock_db.users.insert_one.return_value = mock_insert_result
 
     subscription_data = {
         "endpoint": "https://fcm.googleapis.com/fcm/send/test",
@@ -140,11 +140,11 @@ async def test_subscribe_new_user_with_member_id(mock_notify_db):
         )
         assert r.status_code == 200
 
-    mock_notify_db.users.find_one.assert_called_once_with({"member_id": "M123"})
+    mock_db.users.find_one.assert_called_once_with({"member_id": "M123"})
 
 
 @pytest.mark.asyncio
-async def test_subscribe_existing_user_new_subscription(mock_notify_db):
+async def test_subscribe_existing_user_new_subscription(mock_db):
     """Test adding subscription to existing user."""
     user_id = ObjectId()
     existing_user = {
@@ -152,7 +152,7 @@ async def test_subscribe_existing_user_new_subscription(mock_notify_db):
         "email": "test@example.com",
         "subscriptions": []
     }
-    mock_notify_db.users.find_one.return_value = existing_user
+    mock_db.users.find_one.return_value = existing_user
 
     subscription_data = {
         "endpoint": "https://fcm.googleapis.com/fcm/send/test",
@@ -172,11 +172,11 @@ async def test_subscribe_existing_user_new_subscription(mock_notify_db):
         response_data = r.json()
         assert response_data["userId"] == str(user_id)
 
-    mock_notify_db.users.update_one.assert_called_once()
+    mock_db.users.update_one.assert_called_once()
 
 
 @pytest.mark.asyncio
-async def test_subscribe_existing_user_existing_subscription(mock_notify_db):
+async def test_subscribe_existing_user_existing_subscription(mock_db):
     """Test subscribing with existing endpoint."""
     user_id = ObjectId()
     existing_user = {
@@ -187,7 +187,7 @@ async def test_subscribe_existing_user_existing_subscription(mock_notify_db):
             "keys": {"p256dh": "test-p256dh", "auth": "test-auth"}
         }]
     }
-    mock_notify_db.users.find_one.return_value = existing_user
+    mock_db.users.find_one.return_value = existing_user
 
     subscription_data = {
         "endpoint": "https://fcm.googleapis.com/fcm/send/test",
@@ -205,17 +205,17 @@ async def test_subscribe_existing_user_existing_subscription(mock_notify_db):
         )
         assert r.status_code == 200
 
-    mock_notify_db.users.update_one.assert_not_called()
+    mock_db.users.update_one.assert_not_called()
 
 
 @pytest.mark.asyncio
-@patch("notify.notify.send_web_push")
+@patch("notify.app.send_web_push")
 async def test_notify_broadcast_success(mock_send_web_push, mock_db):
     """Test broadcasting notification to all users."""
     notification_id = ObjectId()
     mock_insert_result = AsyncMock()
     mock_insert_result.inserted_id = notification_id
-    mock_notify_db.notifications.insert_one.return_value = mock_insert_result
+    mock_db.notifications.insert_one.return_value = mock_insert_result
 
     users = [
         {
@@ -240,7 +240,7 @@ async def test_notify_broadcast_success(mock_send_web_push, mock_db):
         for user in users:
             yield user
     
-    mock_notify_db.users.find.return_value = mock_find()
+    mock_db.users.find.return_value = mock_find()
 
     notification_data = {
         "title": "Test Notification",
@@ -262,13 +262,13 @@ async def test_notify_broadcast_success(mock_send_web_push, mock_db):
 
 
 @pytest.mark.asyncio
-@patch("notify.notify.send_web_push")
+@patch("notify.app.send_web_push")
 async def test_notify_member_specific(mock_send_web_push, mock_db):
     """Test sending notification to specific member."""
     notification_id = ObjectId()
     mock_insert_result = AsyncMock()
     mock_insert_result.inserted_id = notification_id
-    mock_notify_db.notifications.insert_one.return_value = mock_insert_result
+    mock_db.notifications.insert_one.return_value = mock_insert_result
 
     target_user = {
         "_id": ObjectId(),
@@ -282,7 +282,7 @@ async def test_notify_member_specific(mock_send_web_push, mock_db):
     async def mock_find():
         yield target_user
     
-    mock_notify_db.users.find.return_value = mock_find()
+    mock_db.users.find.return_value = mock_find()
 
     notification_data = {
         "title": "Member Notification",
@@ -296,7 +296,7 @@ async def test_notify_member_specific(mock_send_web_push, mock_db):
         response_data = r.json()
         assert response_data["successful"] == 1
 
-    mock_notify_db.users.find.assert_called_once_with({"member_id": "M123"})
+    mock_db.users.find.assert_called_once_with({"member_id": "M123"})
 
 
 @pytest.mark.asyncio
@@ -307,7 +307,7 @@ async def test_notify_user_specific(mock_send_web_push, mock_db):
     user_id = ObjectId()
     mock_insert_result = AsyncMock()
     mock_insert_result.inserted_id = notification_id
-    mock_notify_db.notifications.insert_one.return_value = mock_insert_result
+    mock_db.notifications.insert_one.return_value = mock_insert_result
 
     target_user = {
         "_id": user_id,
@@ -321,7 +321,7 @@ async def test_notify_user_specific(mock_send_web_push, mock_db):
     async def mock_find():
         yield target_user
     
-    mock_notify_db.users.find.return_value = mock_find()
+    mock_db.users.find.return_value = mock_find()
 
     notification_data = {
         "title": "User Notification",
@@ -336,11 +336,11 @@ async def test_notify_user_specific(mock_send_web_push, mock_db):
         )
         assert r.status_code == 200
 
-    mock_notify_db.users.find.assert_called_once_with({"_id": user_id})
+    mock_db.users.find.assert_called_once_with({"_id": user_id})
 
 
 @pytest.mark.asyncio
-async def test_notify_invalid_user_id(mock_notify_db):
+async def test_notify_invalid_user_id(mock_db):
     """Test notification with invalid user_id."""
     notification_data = {
         "title": "Test",
@@ -358,15 +358,15 @@ async def test_notify_invalid_user_id(mock_notify_db):
 
 
 @pytest.mark.asyncio
-@patch("notify.notify.send_web_push")
-async def test_notify_web_push_failure_410(mock_send_web_push, mock_notify_db):
+@patch("notify.app.send_web_push")
+async def test_notify_web_push_failure_410(mock_send_web_push, mock_db):
     """Test handling web push failure with 410 status (subscription expired)."""
     from pywebpush import WebPushException
     
     notification_id = ObjectId()
     mock_insert_result = AsyncMock()
     mock_insert_result.inserted_id = notification_id
-    mock_notify_db.notifications.insert_one.return_value = mock_insert_result
+    mock_db.notifications.insert_one.return_value = mock_insert_result
 
     mock_response = MagicMock()
     mock_response.status_code = 410
@@ -385,7 +385,7 @@ async def test_notify_web_push_failure_410(mock_send_web_push, mock_notify_db):
     async def mock_find():
         yield user
     
-    mock_notify_db.users.find.return_value = mock_find()
+    mock_db.users.find.return_value = mock_find()
 
     notification_data = {
         "title": "Test",
@@ -399,19 +399,19 @@ async def test_notify_web_push_failure_410(mock_send_web_push, mock_notify_db):
         assert response_data["failed"] == 1
         assert len(response_data["removed"]) == 1
 
-    mock_notify_db.users.update_one.assert_called_once()
+    mock_db.users.update_one.assert_called_once()
 
 
 @pytest.mark.asyncio
 @patch("notify.notify.send_web_push")
-async def test_notify_web_push_failure_other(mock_send_web_push, mock_notify_db):
+async def test_notify_web_push_failure_other(mock_send_web_push, mock_db):
     """Test handling web push failure with other status codes."""
     from pywebpush import WebPushException
     
     notification_id = ObjectId()
     mock_insert_result = AsyncMock()
     mock_insert_result.inserted_id = notification_id
-    mock_notify_db.notifications.insert_one.return_value = mock_insert_result
+    mock_db.notifications.insert_one.return_value = mock_insert_result
 
     mock_response = MagicMock()
     mock_response.status_code = 500
@@ -430,7 +430,7 @@ async def test_notify_web_push_failure_other(mock_send_web_push, mock_notify_db)
     async def mock_find():
         yield user
     
-    mock_notify_db.users.find.return_value = mock_find()
+    mock_db.users.find.return_value = mock_find()
 
     notification_data = {
         "title": "Test",
@@ -446,14 +446,14 @@ async def test_notify_web_push_failure_other(mock_send_web_push, mock_notify_db)
 
 
 @pytest.mark.asyncio
-async def test_list_users(mock_notify_db):
+async def test_list_users(mock_db):
     """Test listing users endpoint."""
     users = [
         {"_id": ObjectId(), "email": "user1@example.com", "subscriptions": []},
         {"_id": ObjectId(), "email": "user2@example.com", "subscriptions": []}
     ]
     
-    mock_notify_db.users.find.return_value.items = users
+    mock_db.users.find.return_value.items = users
 
     async with AsyncClient(app=app, base_url="http://test") as ac:
         r = await ac.get("/users")
@@ -463,14 +463,14 @@ async def test_list_users(mock_notify_db):
 
 
 @pytest.mark.asyncio
-async def test_list_notifications(mock_notify_db):
+async def test_list_notifications(mock_db):
     """Test listing notifications endpoint."""
     notifications = [
         {"_id": ObjectId(), "title": "Test 1", "body": "Message 1"},
         {"_id": ObjectId(), "title": "Test 2", "body": "Message 2"}
     ]
     
-    mock_notify_db.notifications.find.return_value.items = notifications
+    mock_db.notifications.find.return_value.items = notifications
 
     async with AsyncClient(app=app, base_url="http://test") as ac:
         r = await ac.get("/notifications")
@@ -480,14 +480,14 @@ async def test_list_notifications(mock_notify_db):
 
 
 @pytest.mark.asyncio
-async def test_list_deliveries(mock_notify_db):
+async def test_list_deliveries(mock_db):
     """Test listing deliveries endpoint."""
     deliveries = [
         {"_id": ObjectId(), "notification_id": "123", "status": "sent"},
         {"_id": ObjectId(), "notification_id": "456", "status": "failed"}
     ]
     
-    mock_notify_db.deliveries.find.return_value.items = deliveries
+    mock_db.deliveries.find.return_value.items = deliveries
 
     async with AsyncClient(app=app, base_url="http://test") as ac:
         r = await ac.get("/deliveries")

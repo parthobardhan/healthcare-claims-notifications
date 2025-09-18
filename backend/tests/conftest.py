@@ -18,6 +18,11 @@ def mock_db():
     db.notifications = AsyncMock()
     db.deliveries = AsyncMock()
     
+    db.claims.find_one.return_value = None
+    db.users.find_one.return_value = None
+    db.notifications.find_one.return_value = None
+    db.deliveries.find_one.return_value = None
+    
     return db
 
 
@@ -68,8 +73,8 @@ def sample_subscription_data():
     return {
         "endpoint": "https://fcm.googleapis.com/fcm/send/test-endpoint",
         "keys": {
-            "p256dh": "test-p256dh-key",
-            "auth": "test-auth-key"
+            "p256dh": "BNbzJT8ulBGZWHuIXJU_kYXe-4r2-4NzGHe7wjCkQhXoHo6RrqkZNRs",
+            "auth": "tBHItJI5svbpez7KI4CCXg"
         }
     }
 
