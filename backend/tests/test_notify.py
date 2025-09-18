@@ -14,16 +14,49 @@ from notify.notify import get_vapid, send_web_push
 def mock_notify_db():
     """Mock database for notify service tests."""
     db = AsyncMock()
+    
+    class AsyncIteratorMock:
+        def __init__(self, items=None):
+            self.items = items or []
+            self.index = 0
+            
+        def __aiter__(self):
+            return self
+            
+        async def __anext__(self):
+            if self.index >= len(self.items):
+                raise StopAsyncIteration
+            item = self.items[self.index]
+            self.index += 1
+            return item
+            
+        def limit(self, count):
+            return self
+            
+        def sort(self, field, direction=1):
+            return self
+    
     db.users = AsyncMock()
+    db.users.find_one = AsyncMock()
+    db.users.insert_one = AsyncMock()
+    db.users.update_one = AsyncMock()
+    db.users.find = MagicMock(return_value=AsyncIteratorMock())
+    
     db.notifications = AsyncMock()
+    db.notifications.insert_one = AsyncMock()
+    db.notifications.find = MagicMock(return_value=AsyncIteratorMock())
+    
     db.deliveries = AsyncMock()
+    db.deliveries.insert_one = AsyncMock()
+    db.deliveries.find = MagicMock(return_value=AsyncIteratorMock())
+    
     return db
 
 
 @pytest.fixture(autouse=True)
-async def setup_notify_test_db(mock_notify_db):
+def setup_notify_test_db(mock_notify_db):
     """Setup mock database for notify service."""
-    async def _override_db():
+    def _override_db():
         return mock_notify_db
 
     app.dependency_overrides[get_db] = _override_db
@@ -420,11 +453,7 @@ async def test_list_users(mock_notify_db):
         {"_id": ObjectId(), "email": "user2@example.com", "subscriptions": []}
     ]
     
-    async def mock_find():
-        for user in users:
-            yield user
-    
-    mock_notify_db.users.find.return_value.limit.return_value = mock_find()
+    mock_notify_db.users.find.return_value.items = users
 
     async with AsyncClient(app=app, base_url="http://test") as ac:
         r = await ac.get("/users")
@@ -441,11 +470,7 @@ async def test_list_notifications(mock_notify_db):
         {"_id": ObjectId(), "title": "Test 2", "body": "Message 2"}
     ]
     
-    async def mock_find():
-        for notification in notifications:
-            yield notification
-    
-    mock_notify_db.notifications.find.return_value.sort.return_value.limit.return_value = mock_find()
+    mock_notify_db.notifications.find.return_value.items = notifications
 
     async with AsyncClient(app=app, base_url="http://test") as ac:
         r = await ac.get("/notifications")
@@ -462,11 +487,7 @@ async def test_list_deliveries(mock_notify_db):
         {"_id": ObjectId(), "notification_id": "456", "status": "failed"}
     ]
     
-    async def mock_find():
-        for delivery in deliveries:
-            yield delivery
-    
-    mock_notify_db.deliveries.find.return_value.sort.return_value.limit.return_value = mock_find()
+    mock_notify_db.deliveries.find.return_value.items = deliveries
 
     async with AsyncClient(app=app, base_url="http://test") as ac:
         r = await ac.get("/deliveries")
